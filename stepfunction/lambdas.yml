@@ -322,7 +322,7 @@ Resources:
           Value: !Ref StackName
         - Key: Environment
           Value: !Ref Environment
-          
+
 Outputs:
 
   ########## EC2 Outputs ##########
