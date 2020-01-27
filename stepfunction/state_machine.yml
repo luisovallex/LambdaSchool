@@ -227,3 +227,7 @@ Outputs:
   StateMachineFunction:
     Description: The State Machine that manages lambda functions
     Value: !Ref StateMachineDefinition
+
+  StartCleaning:
+    Description: Lambda function calls state machine
+    Value: !Ref CallStepFunction
