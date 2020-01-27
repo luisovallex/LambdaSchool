@@ -1,0 +1,171 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  State machine to shut down resources
+
+Parameters:
+
+  ListEC2Arn:
+    Type: String
+    Description: ARN of the function used to list EC2
+
+  StopEC2:
+    Type: String
+    Description: ARN of the function used to stop EC2
+
+  ListRDS:
+    Type: String
+    Description: ARN of the function used to list RDS
+
+  StopRDS:
+    Type: String
+    Description: ARN of the function used to stop RDS
+
+  ListSM:
+    Type: String
+    Description: ARN of the function used to list SM
+
+  StopSM:
+    Type: String
+    Description: ARN of the function used to stop SM
+
+  MaxiConcurrency:
+    Type: Number
+    Default: 5
+    Description: Concurrent executions in state machine in a map state
+
+  OwnerName:
+    Type: String
+    Default: ricardo
+    Description: An arbitrary tag name for the owner of these resources
+
+  StackName:
+    Type: String
+    Description: The name of the stack to which these resources belong
+
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [ prod, staging, dev, qa ]
+    Description: Environment name to append to resources names and tags
+
+Resources:
+
+  ########## State Machine Role ##########
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - !Sub states.${AWS::Region}.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: ExecutionRolePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: "*"
+
+  ########## State Machine Definition ##########
+  StateMachineDefinition:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn: !GetAtt [ ExecutionRole, Arn ]
+      DefinitionString:
+        !Sub
+          - |-
+            {
+              "Comment": "Step function LambdaSchool Project",
+              "StartAt": "EC2Listing",
+              "States": {
+                "EC2Listing": {
+                  "Type": "Task",
+                  "Resource": "${ListEC2Arn}",
+                  "Comment": "Lists all the EC2 instances",
+                  "Next": "StoppingEC2"
+                },
+                "StoppingEC2": {
+                  "Type": "Map",
+                  "InputPath": "$.data",
+                  "ItemsPath": "$.ec2_instances",
+                  "MaxConcurrency": ${MaxiConcurrency},
+                  "Iterator": {
+                    "StartAt": "ShutEC2",
+                    "States": {
+                      "ShutEC2": {
+                        "Type": "Task",
+                        "Resource": "${StopEC2}",
+                        "End": true
+                      }
+                    }
+                  },
+                  "Next": "RDSListing"
+                },
+                "RDSListing": {
+                  "Type": "Task",
+                  "Resource": "${ListRDS}",
+                  "Comment": "Lists all the RDS instances",
+                  "Next": "StoppingRDS"
+                },
+                "StoppingRDS": {
+                  "Type": "Map",
+                  "InputPath": "$.data",
+                  "ItemsPath": "$.rds_instances",
+                  "MaxConcurrency": ${MaxiConcurrency},
+                  "Iterator": {
+                    "StartAt": "ShutRDS",
+                    "States": {
+                      "ShutRDS": {
+                        "Type": "Task",
+                        "Resource": "${StopRDS}",
+                        "End": true
+                      }
+                    }
+                  },
+                  "Next": "SMListing"
+                },
+                "SMListing": {
+                  "Type": "Task",
+                  "Resource": "${ListSM}",
+                  "Comment": "Lists all the Sage Maker instances",
+                  "Next": "StoppingSML"
+                },
+                "StoppingSML": {
+                  "Type": "Map",
+                  "InputPath": "$.data",
+                  "ItemsPath": "$.sm_instances",
+                  "MaxConcurrency": ${MaxiConcurrency},
+                  "Iterator": {
+                    "StartAt": "ShutSM",
+                    "States": {
+                      "ShutSM": {
+                        "Type": "Task",
+                        "Resource": "${StopSM}",
+                        "End": true
+                      }
+                    }
+                  },
+                  "End": true
+                }
+              }
+            }
+          - ListEC2Arn: !Ref ListEC2Arn
+            StopEC2: !Ref StopEC2
+            ListRDS: !Ref ListRDS
+            StopRDS: !Ref StopRDS
+            ListSM: !Ref ListSM
+            StopSM: !Ref StopSM
+            MaxiConcurrency: !Ref MaxiConcurrency
+
+
+Outputs:
+  StateMachineFunction:
+    Description: The State Machine that manages lambda functions
+    Value: !Ref StateMachineDefinition
