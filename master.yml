@@ -1,0 +1,65 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  CF Template for LambdaSchool Project
+
+Parameters:
+
+  S3Bucket:
+    Type: String
+    Description: S3 bucket where the templates are stored
+
+  MaxTime:
+    Type: Number
+    Default: 300
+    AllowedValues: [300, 600, 900]
+    Description: Timeout for lambda functions
+
+  MaxiConcurrency:
+    Type: Number
+    Default: 5
+    Description: Concurrent executions in state machine in a map state
+
+  OwnerName:
+    Type: String
+    Default: ricardo@nclouds.com
+    Description: An arbitrary tag name for the owner of these resources
+
+  StackName:
+    Type: String
+    Description: The name of the stack to which these resources belong
+
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [ prod, staging, dev, qa ]
+    Description: Environment name to append to resources names and tags
+
+Resources:
+
+  ########## Lambda Stack Creation ##########
+  LambdaStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://s3.amazonaws.com/${S3Bucket}/stepfunction/lambdas.yml"
+      Parameters:
+        MaxTime: !Ref MaxTime
+        OwnerName: !Ref OwnerName
+        StackName: !Ref StackName
+        Environment: !Ref Environment
+
+  ########## Lambda Stack Creation ##########
+  MachineStateStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://s3.amazonaws.com/${S3Bucket}/stepfunction/state_machine.yml"
+      Parameters:
+        ListEC2Arn: !GetAtt LambdaStack.Outputs.ListingEC2
+        StopEC2: !GetAtt LambdaStack.Outputs.StoppingEC2
+        ListRDS: !GetAtt LambdaStack.Outputs.ListingRDS
+        StopRDS: !GetAtt LambdaStack.Outputs.StoppingRDS
+        ListSM: !GetAtt LambdaStack.Outputs.ListingSM
+        StopSM: !GetAtt LambdaStack.Outputs.StoppingSM
+        MaxiConcurrency: !Ref MaxiConcurrency
+        OwnerName: !Ref OwnerName
+        StackName: !Ref StackName
+        Environment: !Ref Environment
