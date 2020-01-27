@@ -34,6 +34,10 @@ Parameters:
     AllowedValues: [ prod, staging, dev, qa ]
     Description: Environment name to append to resources names and tags
 
+  BudgetAmout:
+    Type: Number
+    Description: Budget amount that would stop all the resources.
+
 Resources:
 
   ########## Lambda Stack Creation ##########
@@ -63,3 +67,14 @@ Resources:
         OwnerName: !Ref OwnerName
         StackName: !Ref StackName
         Environment: !Ref Environment
+
+  ########## Budget Stack Creation ########
+
+  BudgetStack:
+    Type: "AWS::CloudFormation::Stack"
+    Properties:
+      TemplateURL: !Sub "https://s3.amazonaws.com/${S3Bucket}/stepfunction/budget.yml"
+      Parameters:
+        TriggerBudget: !Ref BudgetAmout
+        LambdaFunction: !GetAtt MachineStateStack.Outputs.StartCleaning
+    
