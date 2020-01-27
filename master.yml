@@ -73,8 +73,7 @@ Resources:
   BudgetStack:
     Type: "AWS::CloudFormation::Stack"
     Properties:
-      TemplateURL: !Sub "https://s3.amazonaws.com/${S3Bucket}/stepfunction/budget.yml"
+      TemplateURL: !Sub "https://s3.amazonaws.com/${S3Bucket}/budget/budget.yml"
       Parameters:
         TriggerBudget: !Ref BudgetAmout
         LambdaFunction: !GetAtt MachineStateStack.Outputs.StartCleaning
-    
