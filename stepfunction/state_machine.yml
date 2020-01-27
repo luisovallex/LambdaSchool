@@ -164,6 +164,64 @@ Resources:
             StopSM: !Ref StopSM
             MaxiConcurrency: !Ref MaxiConcurrency
 
+  ########## Lambda State  Function Invoke ##########
+  StepFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSStepFunctionsFullAccess
+
+  ########## Lambda State  Function Invoke ##########
+  CallStepFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Lambda function that is in charge of calling step function
+      Handler: index.lambda_handler
+      Role: !GetAtt [ StepFunctionRole, Arn ]
+      Runtime: python3.6
+      FunctionName: CallStepFunction
+      Timeout: 300
+      Code:
+        ZipFile:
+          !Sub
+            - |-
+              import json
+              import boto3
+              import logging
+              logger = logging.getLogger(__name__)
+              logger.setLevel(logging.INFO)
+              def lambda_handler(event, context):
+                try:
+                  instances = []
+                  response = {}
+                  logger.info('Starting Cleaning Up...')
+                  client = boto3.client('stepfunctions')
+                  client.start_execution(stateMachineArn='${SMArn}')
+                  response = {
+                    "statusCode":200
+                    "Message": "Executing Clean Up"
+                  }
+                  return response
+                except Exception as e:
+                  response["errorMessage"] = str(e)
+                  return response
+            - SMArn: !Ref StateMachineDefinition
+      Tags:
+        - Key: Name
+          Value: !Sub stfunction-call-lambda-${Environment}
+        - Key: Owner
+          Value: !Ref OwnerName
+        - Key: StackName
+          Value: !Ref StackName
+        - Key: Environment
+          Value: !Ref Environment
 
 Outputs:
   StateMachineFunction:
