@@ -1,0 +1,215 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  State machine to shut down resources
+
+Parameters:
+
+  ListEC2Arn:
+    Type: String
+    Description: ARN of the function used to list EC2
+
+  StopEC2:
+    Type: String
+    Description: ARN of the function used to stop EC2
+
+  ListRDS:
+    Type: String
+    Description: ARN of the function used to list RDS
+
+  StopRDS:
+    Type: String
+    Description: ARN of the function used to stop RDS
+
+  ListSM:
+    Type: String
+    Description: ARN of the function used to list SM
+
+  StopSM:
+    Type: String
+    Description: ARN of the function used to stop SM
+
+  MaxiConcurrency:
+    Type: Number
+    Default: 5
+    Description: Concurrent executions in state machine in a map state
+
+  OwnerName:
+    Type: String
+    Default: ricardo
+    Description: An arbitrary tag name for the owner of these resources
+
+  StackName:
+    Type: String
+    Description: The name of the stack to which these resources belong
+
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [ prod, staging, dev, qa ]
+    Description: Environment name to append to resources names and tags
+
+Resources:
+
+  ########## State Machine Role ##########
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - !Sub states.${AWS::Region}.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: ExecutionRolePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: "*"
+
+  ########## State Machine Definition ##########
+  StateMachineDefinition:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn: !GetAtt [ ExecutionRole, Arn ]
+      DefinitionString:
+        !Sub
+          - |-
+            {
+              "Comment": "Parallel execution",
+              "StartAt": "ShuttingParallel",
+              "States":{
+                "ShuttingParallel":{
+                  "Type": "Parallel",
+                  "End": true,
+                  "Branches":[
+                    {
+                      "StartAt": "ListingEC2",
+                      "States":{
+                        "ListingEC2":{
+                          "Type": "Task",
+                          "Resource": "${ListEC2Arn}",
+                          "Next": "StoppingEC2"
+                        },
+                        "StoppingEC2": {
+                          "Type": "Task",
+                          "Resource": "${StopEC2}",
+                          "End": true
+                        }
+                      }
+                    },
+                    {
+                      "StartAt": "ListingRDS",
+                      "States":{
+                        "ListingRDS":{
+                          "Type": "Task",
+                          "Resource": "${ListRDS}",
+                          "Next": "StoppingRDS"
+                        },
+                        "StoppingRDS": {
+                          "Type": "Task",
+                          "Resource": "${StopRDS}",
+                          "End": true
+                        }
+                      }
+                    },
+                    {
+                      "StartAt": "ListingSM",
+                      "States":{
+                        "ListingSM":{
+                          "Type": "Task",
+                          "Resource": "${ListSM}",
+                          "Next": "StoppingSM"
+                        },
+                        "StoppingSM":{
+                          "Type": "Task",
+                          "Resource": "${StopSM}",
+                          "End": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          - ListEC2Arn: !Ref ListEC2Arn
+            StopEC2: !Ref StopEC2
+            ListRDS: !Ref ListRDS
+            StopRDS: !Ref StopRDS
+            ListSM: !Ref ListSM
+            StopSM: !Ref StopSM
+            MaxiConcurrency: !Ref MaxiConcurrency
+
+  ########## Lambda State  Function Invoke ##########
+  StepFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSStepFunctionsFullAccess
+
+  ########## Lambda State  Function Invoke ##########
+  CallStepFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Lambda function that is in charge of calling step function
+      Handler: index.lambda_handler
+      Role: !GetAtt [ StepFunctionRole, Arn ]
+      Runtime: python3.6
+      FunctionName: CallStepFunction
+      Timeout: 300
+      Code:
+        ZipFile:
+          !Sub
+            - |-
+              import json
+              import boto3
+              import logging
+              logger = logging.getLogger(__name__)
+              logger.setLevel(logging.INFO)
+              def lambda_handler(event, context):
+                try:
+                  instances = []
+                  response = {}
+                  logger.info('Starting Cleaning Up...')
+                  client = boto3.client('stepfunctions')
+                  client.start_execution(stateMachineArn='${SMArn}')
+                  response = {
+                    "statusCode":200
+                    "Message": "Executing Clean Up"
+                  }
+                  return response
+                except Exception as e:
+                  response["errorMessage"] = str(e)
+                  return response
+            - SMArn: !Ref StateMachineDefinition
+      Tags:
+        - Key: Name
+          Value: !Sub stfunction-call-lambda-${Environment}
+        - Key: Owner
+          Value: !Ref OwnerName
+        - Key: StackName
+          Value: !Ref StackName
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+  StateMachineFunction:
+    Description: The State Machine that manages lambda functions
+    Value: !Ref StateMachineDefinition
+
+  StartCleaning:
+    Description: Lambda function calls state machine
+    Value: !GetAtt CallStepFunction.Arn

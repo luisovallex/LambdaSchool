@@ -1,0 +1,372 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  Lambda Functions that are used for the state machine
+
+Parameters:
+  MaxTime:
+    Type: Number
+    Default: 300
+    AllowedValues: [300, 600, 900]
+    Description: Timeout for lambda functions
+
+  OwnerName:
+    Type: String
+    Default: ricardo
+    Description: An arbitrary tag name for the owner of these resources
+
+  StackName:
+    Type: String
+    Description: The name of the stack to which these resources belong
+
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [ prod, staging, dev, qa ]
+    Description: Environment name to append to resources names and tags
+
+Resources:
+
+  ########## EC2 Role Access ##########
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEC2FullAccess
+
+  ########## EC2 Listing Lambda ##########
+  EC2ListingLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Lambda function that is in charge of listing EC2 instances
+      Handler: index.lambda_handler
+      Role: !GetAtt [ EC2Role, Arn ]
+      Runtime: python3.6
+      FunctionName: LambdaEC2Listing
+      Timeout: !Ref MaxTime
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import logging
+          logger = logging.getLogger(__name__)
+          logger.setLevel(logging.INFO)
+          def lambda_handler(event, context):
+            try:
+              instances = []
+              response = {}
+              logger.info('Getting EC2 Instances...')
+              ec2 = boto3.client('ec2')
+              ec2_result = ec2.describe_instances(Filters=[{'Name':'instance-state-name','Values':['running','pending']}])
+              for reservation in ec2_result['Reservations']:
+                for instance in reservation['Instances']:
+                  instances.append(instance['InstanceId'])
+              # THIS IS FOR TEST PURPOSES
+              instances = ['i-037c369dd9b7510ec', 'i-070b04d8f0f9f680c', 'i-0aaf513951e58821b']
+              data = {"ec2_instances": instances}
+              response['data'] = data
+              return response
+            except Exception as e:
+              response["errorMessage"] = str(e)
+              return response
+      Tags:
+        - Key: Name
+          Value: !Sub ec2-listing-lambda-${Environment}
+        - Key: Owner
+          Value: !Ref OwnerName
+        - Key: StackName
+          Value: !Ref StackName
+        - Key: Environment
+          Value: !Ref Environment
+
+  ########## EC2 Shutting Down Lambda ##########
+  EC2Stopping:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Lambda function that is in charge of stopping EC2 instances
+      Handler: index.lambda_handler
+      Role: !GetAtt [ EC2Role, Arn ]
+      Runtime: python3.6
+      FunctionName: LambdaEC2Stopping
+      Timeout: !Ref MaxTime
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import logging
+          logger = logging.getLogger(__name__)
+          logger.setLevel(logging.INFO)
+          def lambda_handler(data, context):
+            try:
+              response = {}
+              ec2 = boto3.client('ec2')
+              logger.info('Stopping EC2 Instances: ')
+              ids = data['data']['ec2_instances']
+              result = ec2.stop_instances(InstanceIds=ids)
+              response['result'] = result
+              return response
+            except Exception as e:
+              response["errorMessage"] = str(e)
+              return response
+      Tags:
+        - Key: Name
+          Value: !Sub ec2-stopping-lambda-${Environment}
+        - Key: Owner
+          Value: !Ref OwnerName
+        - Key: StackName
+          Value: !Ref StackName
+        - Key: Environment
+          Value: !Ref Environment
+
+  ########## RDS Role Access ##########
+  RDSRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonRDSFullAccess
+
+  ########## RDS Listing Lambda ##########
+  RDSListingLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Lambda function that is in charge of listing RDS instances
+      Handler: index.lambda_handler
+      Role: !GetAtt [ RDSRole, Arn ]
+      Runtime: python3.6
+      FunctionName: LambdaRDSListing
+      Timeout: !Ref MaxTime
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import logging
+          logger = logging.getLogger(__name__)
+          logger.setLevel(logging.INFO)
+          def lambda_handler(event, context):
+            try:
+              instances = []
+              response = {}
+              rds = boto3.client('rds')
+              rds_result = rds.describe_db_instances()
+              logger.info('Getting RDS Instances...')
+              for rdsi in rds_result['DBInstances']:
+                instances.append(rdsi['DBInstanceIdentifier'])
+              # THIS IS FOR TEST PURPOSES
+              instances = ['test-lambda-rc3']
+              data = {"rds_instances": instances}
+              response['data'] = data
+              return response
+            except Exception as e:
+              response["errorMessage"] = str(e)
+              return response
+      Tags:
+        - Key: Name
+          Value: !Sub rds-listing-lambda-${Environment}
+        - Key: Owner
+          Value: !Ref OwnerName
+        - Key: StackName
+          Value: !Ref StackName
+        - Key: Environment
+          Value: !Ref Environment
+
+  ########## RDS Stopping Lambda ##########
+  RDSStopping:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Lambda function that is in charge of stopping RDS instances
+      Handler: index.lambda_handler
+      Role: !GetAtt [ RDSRole, Arn ]
+      Runtime: python3.6
+      FunctionName: LambdaRDSStopping
+      Timeout: !Ref MaxTime
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import logging
+          logger = logging.getLogger(__name__)
+          logger.setLevel(logging.INFO)
+          def lambda_handler(data, context):
+            try:
+              response = {}
+              succesfull = []
+              errors = []
+              rds = boto3.client('rds')
+              instances = data['data']['rds_instances']
+              for instance in instances:
+                try:
+                  result = rds.stop_db_instance(DBInstanceIdentifier=instance)
+                  succesfull.append(instance)
+                except Exception as e:
+                  errors.append(instance)
+              response['succesfull'] = succesfull
+              response['errors'] = errors
+              return response
+            except Exception as e:
+              response["errorMessage"] = str(e)
+              return response
+      Tags:
+        - Key: Name
+          Value: !Sub rds-stopping-lambda-${Environment}
+        - Key: Owner
+          Value: !Ref OwnerName
+        - Key: StackName
+          Value: !Ref StackName
+        - Key: Environment
+          Value: !Ref Environment
+
+  ########## SM Role Access ##########
+  SMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
+
+  ########## SM Listing Access ##########
+  SMListingLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Lambda function that is in charge of listing Sage Maker instances
+      Handler: index.lambda_handler
+      Role: !GetAtt [ SMRole, Arn ]
+      Runtime: python3.6
+      FunctionName: LambdaSMListing
+      Timeout: !Ref MaxTime
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import logging
+          logger = logging.getLogger(__name__)
+          logger.setLevel(logging.INFO)
+          def lambda_handler(event, context):
+            try:
+              instances = []
+              response = {}
+              sage = boto3.client('sagemaker')
+              sage_result = sage.list_notebook_instances(StatusEquals='InService')
+              logger.info('Getting Sage Maker Instances...')
+
+              for n_insta in sage_result['NotebookInstances']:
+                instances.append(n_insta['NotebookInstanceName'])
+
+              sage_result = sage.list_notebook_instances(StatusEquals='Pending')
+              for n_insta in sage_result['NotebookInstances']:
+                Instances.append(n_insta['NotebookInstanceName'])
+
+              # THIS IS FOR TEST PURPOSES
+              instances = ['test-lambda-rc4']
+              data = {"sm_instances": instances}
+              response['data'] = data
+              return response
+            except Exception as e:
+              response["errorMessage"] = str(e)
+              return response
+      Tags:
+        - Key: Name
+          Value: !Sub sm-listing-lambda-${Environment}
+        - Key: Owner
+          Value: !Ref OwnerName
+        - Key: StackName
+          Value: !Ref StackName
+        - Key: Environment
+          Value: !Ref Environment
+
+  ########## SM Stopping Access ##########
+  SMStopping:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Lambda function that is in charge of Stopping Sage Maker instances
+      Handler: index.lambda_handler
+      Role: !GetAtt [ SMRole, Arn ]
+      Runtime: python3.6
+      FunctionName: LambdaSMStopping
+      Timeout: !Ref MaxTime
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import logging
+          logger = logging.getLogger(__name__)
+          logger.setLevel(logging.INFO)
+          def lambda_handler(data, context):
+            try:
+              response = {}
+              succesfull = []
+              errors = []
+              sage = boto3.client('sagemaker')
+              instances = data['data']['sm_instances']
+              for instance in instances:
+                try:
+                  sage.stop_notebook_instance(NotebookInstanceName=instance)
+                  res = sage.describe_notebook_instance(NotebookInstanceName=instance)
+                  if res['NotebookInstanceStatus'] == 'Stopping':
+                    succesfull.append(instance)
+                  else:
+                    errors.append(instance)
+                except Exception as e:
+                  errors.append(instance)
+              response['succesfull'] = succesfull
+              response['errors'] = errors
+              return response
+            except Exception as e:
+              response["errorMessage"] = str(e)
+              return response
+      Tags:
+        - Key: Name
+          Value: !Sub sm-stopping-lambda-${Environment}
+        - Key: Owner
+          Value: !Ref OwnerName
+        - Key: StackName
+          Value: !Ref StackName
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+
+  ########## EC2 Outputs ##########
+  ListingEC2:
+    Description: ARN Lambda function that lists EC2 Instances
+    Value: !GetAtt EC2ListingLambda.Arn
+
+  StoppingEC2:
+    Description: ARN Lambda function that stops EC2 Instances
+    Value: !GetAtt EC2Stopping.Arn
+
+  ########## RDS Outputs ##########
+  ListingRDS:
+    Description: ARN Lambda function that lists RDS Instances
+    Value: !GetAtt RDSListingLambda.Arn
+
+  StoppingRDS:
+    Description: ARN Lambda function that stops RDS Instances
+    Value: !GetAtt RDSStopping.Arn
+
+  ########## SM Outputs ##########
+  ListingSM:
+    Description: ARN Lambda function that lists Sage Maker Instances
+    Value: !GetAtt SMListingLambda.Arn
+
+  StoppingSM:
+    Description: ARN Lambda function that stops Sage Maker Instances
+    Value: !GetAtt SMStopping.Arn
