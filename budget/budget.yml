@@ -44,6 +44,7 @@ Resources:
       Action: lambda:InvokeFunction
       FunctionName: !Ref LambdaFunction
       Principal: sns.amazonaws.com  
+      SourceArn: !Ref Topic
 
   Budget:
     Type: AWS::Budgets::Budget
