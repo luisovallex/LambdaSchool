@@ -19,8 +19,8 @@ Resources:
     Type: AWS::SNS::Topic
     Properties:
       DisplayName: Budget-Notification
-      Subscription: 
-        - Endpoint: !Ref LambdaFuncion
+      Subscription:
+        - Endpoint: !Ref LambdaFunction
           Protocol: lambda
 
   Policy:
@@ -33,16 +33,16 @@ Resources:
           Effect: Allow
           Principal:
             Service: budgets.amazonaws.com
-          Action: sns:Publish
+          Action: sns:Subscribe
           Resource: !Ref Topic
       Topics:
         - Ref: Topic
-        
+
   Budget:
     Type: AWS::Budgets::Budget
     Properties:
-      Budget: 
-        BudgetLimit: 
+      Budget:
+        BudgetLimit:
           Amount: !Ref TriggerBudget
           Unit: USD
         BudgetName: Trigger-Budget
@@ -51,10 +51,9 @@ Resources:
       NotificationsWithSubscribers:
         - Notification:
             NotificationType: ACTUAL
-            ComparisonOperator: EQUAL_TO
+            ComparisonOperator: GREATER_THAN
             Threshold: 100
-            Threshold: PERCENTAGE
+            ThresholdType: PERCENTAGE
           Subscribers:
             - Address: !Ref Topic
               SubscriptionType: SNS
-

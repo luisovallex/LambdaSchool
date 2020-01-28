@@ -230,4 +230,4 @@ Outputs:
 
   StartCleaning:
     Description: Lambda function calls state machine
-    Value: !Ref CallStepFunction
+    Value: !GetAtt CallStepFunction.Arn
