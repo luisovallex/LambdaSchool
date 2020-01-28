@@ -205,7 +205,7 @@ Resources:
                   client = boto3.client('stepfunctions')
                   client.start_execution(stateMachineArn='${SMArn}')
                   response = {
-                    "statusCode":200
+                    "statusCode":200,
                     "Message": "Executing Clean Up"
                   }
                   return response
