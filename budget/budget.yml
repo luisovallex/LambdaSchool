@@ -38,6 +38,13 @@ Resources:
       Topics:
         - Ref: Topic
 
+  InvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref LambdaFunction
+      Principal: sns.amazonaws.com  
+
   Budget:
     Type: AWS::Budgets::Budget
     Properties:
