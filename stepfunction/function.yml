@@ -77,7 +77,7 @@ Resources:
               ec2 = boto3.client('ec2')
               # ----- EC2 -----------------------------
               #Filtering the instances to avoid errors...
-              logger.info('Getting EC2 Running|Pending Instances')
+              logger.info('Cleaning: Getting EC2 Running|Pending Instances')
               ec2_result = ec2.describe_instances(Filters=[{'Name':'instance-state-name','Values':['running','pending']}])
               instances = []
               n = 0
@@ -85,18 +85,19 @@ Resources:
                 for instance in reservation['Instances']:
                   instances.append(instance['InstanceId'])
                   n += 1
-              logger.info('Stopping '+str(n)+' EC2 Instances')
+              n = 3
+              logger.info('Cleaning: Stopping '+str(n)+' EC2 Instances')
               instances = ['i-037c369dd9b7510ec', 'i-070b04d8f0f9f680c','i-0aaf513951e58821b']
               if n > 0:
                 result = ec2.stop_instances(InstanceIds=instances)
             except botocore.exceptions.ClientError as e:
-              logger.info('Error stopping ec2 Instances: '+str(err.response['Error']['Message']))
+              logger.info('Cleaning: Error stopping ec2 Instances: '+str(err.response['Error']['Message']))
           
           def clean_up_rds():
             try:
               # ----- RDS -----------------------------
               rds = boto3.client('rds')
-              logger.info('Getting RDS Instances')
+              logger.info('Cleaning: Getting RDS Instances')
               rds_result = rds.describe_db_instances()
               x = 0
               rds_result = {
@@ -116,21 +117,21 @@ Resources:
                 try:
                   if rdsi['DBInstanceStatus'] == 'available':
                     rds.stop_db_instance(DBInstanceIdentifier=rdsi['DBInstanceIdentifier'])
-                    logger.info('Stopping RDS Instance: '+rdsi['DBInstanceIdentifier'])
+                    logger.info('Cleaning: Stopping RDS Instance: '+rdsi['DBInstanceIdentifier'])
                     x += 1
                 except botocore.exceptions.ClientError as err:
-                  logger.info('RDS Instance: '+rdsi['DBInstanceIdentifier']+" error while trying to stop it: "+str(err.response['Error']['Message']))
+                  logger.info('Cleaning: RDS Instance: '+rdsi['DBInstanceIdentifier']+" error while trying to stop it: "+str(err.response['Error']['Message']))
               
               logger.info('Stopping '+str(x)+' RDS Instances')
             except botocore.exceptions.ClientError as err:
-              logger.info('Error stopping rds Instances: '+str(err.response['Error']['Message']))
+              logger.info('Cleaning: Error stopping rds Instances: '+str(err.response['Error']['Message']))
 
           def clean_up_sm():
             try:
               # ------ SAGE MAKER ----------------------
               sage = boto3.client('sagemaker')
               # -- listing in service Sage Maker Instances
-              logger.info('Getting In Service Sage Maker Instances')
+              logger.info('Cleaning: Getting In Service Sage Maker Instances')
               # ------ In Service Instances ------------
               sage_result_service = sage.list_notebook_instances(StatusEquals='InService')
               sage_result_service = {
@@ -150,13 +151,13 @@ Resources:
               for n_insta in sage_result_service['NotebookInstances']:
                 try:
                   sage.stop_notebook_instance(NotebookInstanceName=n_insta['NotebookInstanceName'])
-                  logger.info('Stopping SM Instance: '+n_insta['NotebookInstanceName'])
+                  logger.info('Cleaning: Stopping SM Instance: '+n_insta['NotebookInstanceName'])
                   x += 1
                 except botocore.exceptions.ClientError as err:
-                  logger.info('Sage Maker Instance: '+n_insta['NotebookInstanceName']+" error while trying to stop it: "+str(err.response['Error']['Message']))
-              logger.info('Stopping '+str(x)+' Sage Maker Instances')
+                  logger.info('Cleaning: Sage Maker Instance: '+n_insta['NotebookInstanceName']+" error while trying to stop it: "+str(err.response['Error']['Message']))
+              logger.info('Cleaning: Stopping '+str(x)+' Sage Maker Instances')
             except botocore.exceptions.ClientError as err:
-              logger.info('Error stopping Sage Maker Instances: '+str(err.response['Error']['Message']))
+              logger.info('Cleaning: Error stopping Sage Maker Instances: '+str(err.response['Error']['Message']))
       Tags:
         - Key: Name
           Value: !Sub clean-lambda-${Environment}
