@@ -1,0 +1,156 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  Lambda Function to clean up resources
+
+Parameters:
+
+  MaxTime:
+    Type: Number
+    Default: 300
+    AllowedValues: [300, 600, 900]
+    Description: Timeout for lambda functions
+
+  OwnerName:
+    Type: String
+    Default: ricardo
+    Description: An arbitrary tag name for the owner of these resources
+
+  StackName:
+    Type: String
+    Description: The name of the stack to which these resources belong
+
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [ prod, staging, dev, qa ]
+    Description: Environment name to append to resources names and tags
+
+Resources:
+
+  ########## Lambda Permisions ##########
+  CleanUpRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEC2FullAccess
+        - arn:aws:iam::aws:policy/AmazonRDSFullAccess
+        - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+  
+  ########## Lambda Code ##########
+  Cleaning:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Lambda function that stops the resources
+      Handler: index.lambda_handler
+      Role: !GetAtt [ CleanUpRole, Arn ]
+      Runtime: python3.6
+      FunctionName: CleaningResources
+      Timeout: !Ref MaxTime
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import logging
+          logger = logging.getLogger(__name__)
+          logger.setLevel(logging.INFO)
+          def lambda_handler(event, context):
+            try:
+              response = {}
+              clean_up_ec2()
+              clean_up_rds()
+              clean_up_sm()
+            except Exception as e:
+              response["errorMessage"] = str(e)
+              return response
+
+          def clean_up_ec2():
+            try:
+              ec2 = boto3.client('ec2')
+              # ----- EC2 -----------------------------
+              #Filtering the instances to avoid errors...
+              logger.info('Getting EC2 Running|Pending Instances')
+              ec2_result = ec2.describe_instances(Filters=[{'Name':'instance-state-name','Values':['running','pending']}])
+              instances = []
+              n = 0
+              for reservation in ec2_result['Reservations']:
+                for instance in reservation['Instances']:
+                  instances.append(instance['InstanceId'])
+                  n += 1
+              logger.info('Stopping '+str(n)+' EC2 Instances')
+              if n > 0:
+                result = ec2.stop_instances(InstanceIds=instances)
+            except Exception as e:
+              logger.info('Error stopping ec2 Instances: '+str(e))
+          
+          def clean_up_rds():
+            try:
+              # ----- RDS -----------------------------
+              rds = boto3.client('rds')
+              logger.info('Getting RDS Instances')
+              rds_result = rds.describe_db_instances()
+              x = 0
+              for rdsi in rds_result['DBInstances']:
+                try:
+                  if rdsi['DBInstanceStatus'] == 'available':
+                    rds.stop_db_instance(DBInstanceIdentifier=rdsi['DBInstanceIdentifier'])
+                    logger.info('Stopping RDS Instance: '+rdsi['DBInstanceIdentifier'])
+                    x += 1
+                except Exception as err:
+                  logger.info('RDS Instance: '+rdsi['DBInstanceIdentifier']+" error while trying to stop it: "+err)
+              logger.info('Stopping '+str(x)+' RDS Instances')
+            except Exception as e:
+              logger.info('Error stopping rds Instances: '+str(e))
+
+          def clean_up_sm():
+            try:
+              # ------ SAGE MAKER ----------------------
+              sage = boto3.client('sagemaker')
+              # -- listing in service Sage Maker Instances
+              logger.info('Getting In Service Sage Maker Instances')
+              # ------ In Service Instances ------------
+              sage_result_service = sage.list_notebook_instances(StatusEquals='InService')
+              x = 0
+              for n_insta in sage_result_service['NotebookInstances']:
+                try:
+                  sage.stop_notebook_instance(NotebookInstanceName=n_insta['NotebookInstanceName'])
+                  logger.info('Stopping SM Instance: '+n_insta['NotebookInstanceName'])
+                  x += 1
+                except Exception as err:
+                  logger.info('Sage Maker Instance: '+n_insta['NotebookInstanceName']+" error while trying to stop it: "+err)
+              # ------ Pending Instances ------------
+              logger.info('Getting Pending Sage Maker Instances')
+              sage_result_pending = sage.list_notebook_instances(StatusEquals='Pending')
+              for n_insta in sage_result_pending['NotebookInstances']:
+                try:
+                  sage.stop_notebook_instance(NotebookInstanceName=n_insta['NotebookInstanceName'])
+                  logger.info('Stopping SM Instance: '+n_insta['NotebookInstanceName'])
+                  x += 1
+                except Exception as err:
+                  logger.info('Sage Maker Instance: '+n_insta['NotebookInstanceName']+" error while trying to stop it: "+err)
+              logger.info('Stopping '+str(x)+' Sage Maker Instances')
+            except Exception as e:
+              logger.info('Error stopping Sage Maker Instances: '+str(e))
+      Tags:
+        - Key: Name
+          Value: !Sub clean-lambda-${Environment}
+        - Key: Owner
+          Value: !Ref OwnerName
+        - Key: StackName
+          Value: !Ref StackName
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+
+  ########## Clean Outputs ##########
+  CleaningLambda:
+    Description: ARN Lambda function
+    Value: !GetAtt Cleaning.Arn
