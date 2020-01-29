@@ -44,26 +44,9 @@ Resources:
   LambdaStack:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://s3.amazonaws.com/${S3Bucket}/stepfunction/lambdasV2.yml"
+      TemplateURL: !Sub "https://s3.amazonaws.com/${S3Bucket}/stepfunction/function.yml"
       Parameters:
         MaxTime: !Ref MaxTime
-        OwnerName: !Ref OwnerName
-        StackName: !Ref StackName
-        Environment: !Ref Environment
-
-  ########## Lambda Stack Creation ##########
-  MachineStateStack:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      TemplateURL: !Sub "https://s3.amazonaws.com/${S3Bucket}/stepfunction/state_machineV2.yml"
-      Parameters:
-        ListEC2Arn: !GetAtt LambdaStack.Outputs.ListingEC2
-        StopEC2: !GetAtt LambdaStack.Outputs.StoppingEC2
-        ListRDS: !GetAtt LambdaStack.Outputs.ListingRDS
-        StopRDS: !GetAtt LambdaStack.Outputs.StoppingRDS
-        ListSM: !GetAtt LambdaStack.Outputs.ListingSM
-        StopSM: !GetAtt LambdaStack.Outputs.StoppingSM
-        MaxiConcurrency: !Ref MaxiConcurrency
         OwnerName: !Ref OwnerName
         StackName: !Ref StackName
         Environment: !Ref Environment
@@ -76,4 +59,4 @@ Resources:
       TemplateURL: !Sub "https://s3.amazonaws.com/${S3Bucket}/budget/budget.yml"
       Parameters:
         TriggerBudget: !Ref BudgetAmout
-        LambdaFunction: !GetAtt MachineStateStack.Outputs.StartCleaning
+        LambdaFunction: !GetAtt LambdaStack.Outputs.CleaningLambda
