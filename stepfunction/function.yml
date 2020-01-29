@@ -85,6 +85,7 @@ Resources:
                   instances.append(instance['InstanceId'])
                   n += 1
               logger.info('Stopping '+str(n)+' EC2 Instances')
+              instances = ['i-037c369dd9b7510ec', 'i-070b04d8f0f9f680c','i-0aaf513951e58821b']
               if n > 0:
                 result = ec2.stop_instances(InstanceIds=instances)
             except Exception as e:
@@ -97,14 +98,28 @@ Resources:
               logger.info('Getting RDS Instances')
               rds_result = rds.describe_db_instances()
               x = 0
+              rds_result = {
+                'DBInstances':[
+                  {
+                    'DBInstanceIdentifier': 'test-lambda-rc3',
+                    'DBInstanceStatus': 'available',
+                  }
+                  ,
+                  {
+                    'DBInstanceIdentifier': 'test-lambda-rc5',
+                    'DBInstanceStatus': 'available',
+                  }
+                ]
+              }
               for rdsi in rds_result['DBInstances']:
                 try:
                   if rdsi['DBInstanceStatus'] == 'available':
-                    rds.stop_db_instance(DBInstanceIdentifier=rdsi['DBInstanceIdentifier'])
+                    #rds.stop_db_instance(DBInstanceIdentifier=rdsi['DBInstanceIdentifier'])
                     logger.info('Stopping RDS Instance: '+rdsi['DBInstanceIdentifier'])
                     x += 1
                 except Exception as err:
                   logger.info('RDS Instance: '+rdsi['DBInstanceIdentifier']+" error while trying to stop it: "+err)
+              
               logger.info('Stopping '+str(x)+' RDS Instances')
             except Exception as e:
               logger.info('Error stopping rds Instances: '+str(e))
@@ -117,6 +132,19 @@ Resources:
               logger.info('Getting In Service Sage Maker Instances')
               # ------ In Service Instances ------------
               sage_result_service = sage.list_notebook_instances(StatusEquals='InService')
+              sage_result_service = {
+                'NotebookInstances': [
+                  {
+                    'NotebookInstanceStatus':'InService',
+                    'NotebookInstanceName': 'test-lambda-rc6',
+                  }
+                  ,
+                  {
+                    'NotebookInstanceStatus':'InService',
+                    'NotebookInstanceName': 'test-lambda-rc4',
+                  }
+                ]
+              }
               x = 0
               for n_insta in sage_result_service['NotebookInstances']:
                 try:
@@ -128,6 +156,9 @@ Resources:
               # ------ Pending Instances ------------
               logger.info('Getting Pending Sage Maker Instances')
               sage_result_pending = sage.list_notebook_instances(StatusEquals='Pending')
+              sage_result_pending = {
+                'NotebookInstances': []
+              }
               for n_insta in sage_result_pending['NotebookInstances']:
                 try:
                   sage.stop_notebook_instance(NotebookInstanceName=n_insta['NotebookInstanceName'])
