@@ -33,7 +33,7 @@ Resources:
           Effect: Allow
           Principal:
             Service: budgets.amazonaws.com
-          Action: sns:Subscribe
+          Action: sns:Publish
           Resource: !Ref Topic
       Topics:
         - Ref: Topic
