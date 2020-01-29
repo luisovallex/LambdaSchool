@@ -74,6 +74,7 @@ Resources:
                 "statusCode": 200,
                 "Message": "Clean Up Executed"
               }
+              return response
             except Exception as e:
               logger.info('Error while executing Cleaning: '+str(e))
               response = {
