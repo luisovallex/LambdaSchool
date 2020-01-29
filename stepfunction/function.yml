@@ -65,11 +65,21 @@ Resources:
           def lambda_handler(event, context):
             try:
               response = {}
+              logger.info('Clean: Starting...')
               clean_up_ec2()
               clean_up_rds()
               clean_up_sm()
+              logger.info('Clean: Finish...')
+              response = {
+                "statusCode": 200,
+                "Message": "Clean Up Executed"
+              }
             except Exception as e:
-              response["errorMessage"] = str(e)
+              logger.info('Error while executing Cleaning: '+str(e))
+              response = {
+                "statusCode": 500,
+                "Message": str(e)
+              }
               return response
 
           def clean_up_ec2():
