@@ -1,0 +1,309 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  Lambda Functions that are used for the state machine
+
+Parameters:
+  MaxLambdaWaitTime:
+    Type: Number
+    Default: 15
+    AllowedValues: [ 5, 10, 15]
+    Description: Max time waiting lambda will be up in Minutes
+
+  WaitingTime:
+    Type: Number
+    Default: 2
+    Description: Time in minutes waiting
+
+  OwnerName:
+    Type: String
+    Default: ricardo
+    Description: An arbitrary tag name for the owner of these resources
+
+  StackName:
+    Type: String
+    Description: The name of the stack to which these resources belong
+
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [ prod, staging, dev, qa ]
+    Description: Environment name to append to resources names and tags
+
+Resources:
+
+  ########## Lambda Permisions ##########
+  CleanUpRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEC2FullAccess
+        - arn:aws:iam::aws:policy/AmazonRDSFullAccess
+        - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+  
+  ########## Lambda Code ##########
+  Cleaning:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Lambda function that stops the resources
+      Handler: index.lambda_handler
+      Role: !GetAtt [ CleanUpRole, Arn ]
+      Runtime: python3.6
+      FunctionName: CleaningResources
+      Timeout: !Ref MaxTime
+      Code:
+        ZipFile: |
+          import json
+          import botocore
+          import boto3
+          import logging
+          logger = logging.getLogger(__name__)
+          logger.setLevel(logging.INFO)
+          def lambda_handler(event, context):
+            try:
+              pass
+            except Exception as e:
+              logger.info('Error while executing Cleaning: '+str(e))
+              response = {
+                "statusCode": 500,
+                "Message": str(e)
+              }
+              return response
+          
+          def listing_ec2(ec2_states):
+            try:
+              instances = []
+              ec2 = boto3.client('ec2')
+              ec2_result = ec2.describe_instances(Filters=[{'Name':'instance-state-name','Values':ec2_states}])
+              for reservation in ec2_result['Reservations']:
+                for instance in reservation['Instances']:
+                  instances.append(instance['InstanceId'])
+              instances = ['i-037c369dd9b7510ec', 'i-070b04d8f0f9f680c','i-0aaf513951e58821b']
+              return instances
+            except botocore.exceptions.ClientError as e:
+              logger.info('Cleaning >> Error Listing EC2 Instances: '+str(err.response['Error']['Message']))
+          
+          def stopping_ec2(instances):
+            try:
+              ec2 = boto3.client('ec2')
+              for instance in instances:
+                try:
+                  result = ec2.stop_instances(InstanceIds=[instance])
+                  logger.info('Cleaning >> Stopping EC2 Instance: '+str(instance))
+                except botocore.exceptions.ClientError as err:
+                  logger.info('Cleaning >> Error Stopping ec2 Instance '+str(instance)+': '+err.response['Error']['Message'])
+            except botocore.exceptions.ClientError as e:
+              logger.info('Cleaning >> Error Stopping EC2 Instances: '+str(e.response['Error']['Message']))
+
+          def listing_rds(status):
+            try:
+              instances = []
+              rds = boto3.client('rds')
+              rds_result = rds.describe_db_instances()
+              for rdsi in rds_result['DBInstances']:
+                if rdsi['DBInstanceStatus'] == 'available':
+                  instances.append(rdsi['DBInstanceIdentifier'])
+              instances = ['test-lambda-rc3', 'test-lambda-rc5']
+              return instances
+            except botocore.exceptions.ClientError as err:
+              logger.info('Cleaning >> Error Listing RDS Instances: '+str(err.response['Error']['Message']))
+          
+          def stopping_rds(instances):
+            try:
+              rds = boto3.client('rds')
+              for instance in instances:
+                try:
+                  rds.stop_db_instance(DBInstanceIdentifier=instance)
+                  logger.info('Cleaning >> Stopping RDS Instance: '+instance)
+                except botocore.exceptions.ClientError as e:
+                  logger.info('Cleaning >> Error Stopping RDS Instance '+str(instance)+': '+e.response['Error']['Message'])
+            except botocore.exceptions.ClientError as err:
+              logger.info('Cleaning >> Error Stopping RDS Instances: '+str(err.response['Error']['Message']))
+          
+          def listing_sm(status):
+            try:
+              instances = []
+              sage = boto3.client('sagemaker')
+              sage_result_service = sage.list_notebook_instances(StatusEquals=status)
+              for n_insta in sage_result_service['NotebookInstances']:
+                instances.append(n_insta['NotebookInstanceName'])
+              instances = ['test-lambda-rc6', 'test-lambda-rc4']
+              return instances
+            except botocore.exceptions.ClientError as err:
+              logger.info('Cleaning >> Error stopping Sage Maker Instances: '+str(err.response['Error']['Message']))
+          
+          def stopping_sm(instances):
+            try:
+              sage = boto3.client('sagemaker')
+              for instance in instances:
+                try:
+                  sage.stop_notebook_instance(NotebookInstanceName=instance)
+                  logger.info('Cleaning >> Stopping Sage Maker Instance: '+instance)
+                except botocore.exceptions.ClientError as e:
+                  logger.info('Cleaning >> Error Stopping Sage Maker Instance: '+instance+" : "+str(e.response['Error']['Message']))
+            except botocore.exceptions.ClientError as err:
+              logger.info('Cleaning >> Error stopping Sage Maker Instances: '+str(err.response['Error']['Message']))
+          
+          def listing_rds_cluster(status):
+            try:
+              clusters = []
+              rds = boto3.client('rds')
+              cluster_result = rds.describe_db_clusters()
+              for cluster in cluster_result['DBClusters']:
+                if cluster['Status'] == status:
+                  clusters.append(cluster['DBClusterIdentifier'])
+              clusters = ['test-lambda-cluster']
+              return clusters
+            except botocore.exceptions.ClientError as err:
+              logger.info('Cleaning >> Error Listing RDS Clusters: '+str(err.response['Error']['Message']))
+          
+          def stopping_rds_clusters(clusters):
+            try:
+              rds = boto3.client('rds')
+              for cluster in clusters:
+                try:
+                  rds.stop_db_cluster(DBClusterIdentifier=cluster)
+                  logger.info('Cleaning >> Stopping RDS Cluster: '+cluster)
+                except botocore.exceptions.ClientError as e:
+                  logger.info('Cleaning >> Error Stopping RDS Cluster '+str(cluster)+': '+e.response['Error']['Message'])
+            except botocore.exceptions.ClientError as err:
+              logger.info('Cleaning >> Error Stopping RDS Clusters: '+str(err.response['Error']['Message']))
+          
+          def check_ec2_stopped():
+            try:
+              logger.info('Cleaning >> Checking EC2 Instances State... ')
+              ec2 = boto3.client('ec2')
+              ec2_result = ec2.describe_instances()
+              for reservation in ec2_result['Reservations']:
+                for instance in reservation['Instances']:
+                  if instance['State'] != 'stopped':
+                    return False
+              return True
+            except botocore.exceptions.ClientError as err:
+              logger.info('Cleaning >> Error Checking all EC2 Instances: '+str(err.response['Error']['Message']))
+
+          def check_rds_stopped():
+            try:
+              logger.info('Cleaning >> Checking RDS Instances State... ')
+              rds = boto3.client('rds')
+              rds_result = rds.describe_db_instances()
+              for rdsi in rds_result['DBInstances']:
+                if rdsi['DBInstanceStatus'] != 'stopped':
+                  return False
+              return True
+            except botocore.exceptions.ClientError as err:
+              logger.info('Cleaning >> Error Checking all RDS Instances: '+str(err.response['Error']['Message']))
+              return False
+          
+          def check_sm_stopped():
+            try:
+              logger.info('Cleaning >> Checking Sage Maker Instances State... ')
+              sage = boto3.client('sagemaker')
+              sage_result_service = sage.list_notebook_instances()
+              for n_insta in sage_result_service['NotebookInstances']:
+                if n_insta['NotebookInstanceStatus'] != 'Stopped':
+                  return False
+              return True
+            except botocore.exceptions.ClientError as err:
+              logger.info('Cleaning >> Error Checking all SM Instances: '+str(err.response['Error']['Message']))
+              return False
+          
+          def check_rds_clusters():
+            try:
+              logger.info('Cleaning >> Checking RDS Clusters State... ')
+              rds = boto3.client('rds')
+              cluster_result = rds.describe_db_clusters()
+              for cluster in cluster_result['DBClusters']:
+                if cluster['Status'] != 'stopped':
+                  return False
+              return True
+            except botocore.exceptions.ClientError as err:
+              logger.info('Cleaning >> Error Checking all RDS Clusters: '+str(err.response['Error']['Message']))
+              return False
+      Tags:
+        - Key: Name
+          Value: !Sub lambda-clean-${Environment}
+        - Key: Owner
+          Value: !Ref OwnerName
+        - Key: StackName
+          Value: !Ref StackName
+        - Key: Environment
+          Value: !Ref Environment
+
+  ########## Lambda Waiting Role ##########
+  WaitingRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  ########## Lambda Waiting Code ##########
+  Waiting:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Lambda function that waits
+      Handler: index.lambda_handler
+      Role: !GetAtt [ WaitingRole, Arn ]
+      Runtime: python3.6
+      FunctionName: WaitingLambda
+      Timeout: 15
+      Code:
+        ZipFile:
+          !Sub
+            - |-
+              import json
+              import time
+              import logging
+              logger = logging.getLogger(__name__)
+              logger.setLevel(logging.INFO)
+              def lambda_handler(event, context):
+                try:
+                  MAX_LAMBDA = ${MaxiL} # MIN
+                  MIN = ${TimeWait} # MINUTES
+                  logger.info('Cleaning >> Waiting...')
+                  MIN = round(MIN)
+                  i = 0
+                  while i < MIN and i < MAX_LAMBDA:
+                    time.sleep(60)
+                    logger.info('Cleaning >> Waiting '+str(i+1)+'min out of '+str(MIN)+'min...')
+                    i += 1
+                  logger.info('Cleaning >> Finish waiting...')
+                except Exception as e:
+                  logger.info('Cleaning >> Error while waiting: '+str(e))
+            - TimeWait: !Ref WaitingTime
+              MaxiL: !Ref MaxLambdaWaitTime
+      Tags:
+        - Key: Name
+          Value: !Sub lambda-wait-${Environment}
+        - Key: Owner
+          Value: !Ref OwnerName
+        - Key: StackName
+          Value: !Ref StackName
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+
+  ########## Clean Lambda ##########
+  CleaningLambda:
+    Description: ARN Lambda function for cleaning resources
+    Value: !GetAtt Cleaning.Arn
+
+  ########## Waiting Lambda ##########
+  WaitingLambda:
+    Description: ARN Lambda function for waiting
+    Value: !GetAtt Waiting.Arn
