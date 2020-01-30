@@ -8,16 +8,21 @@ Parameters:
     Type: String
     Description: S3 bucket where the templates are stored
 
-  MaxTime:
+  MaxLambdaWaitTime:
     Type: Number
     Default: 300
     AllowedValues: [300, 600, 900]
     Description: Timeout for lambda functions
 
-  MaxiConcurrency:
+  WaitingTime:
     Type: Number
-    Default: 5
-    Description: Concurrent executions in state machine in a map state
+    Default: 2
+    Description: Time in minutes waiting
+  
+  RetryTimes:
+    Type: Number
+    Default: 3
+    Description: Number of times it will retry waiting for the resources
 
   OwnerName:
     Type: String
@@ -44,19 +49,31 @@ Resources:
   LambdaStack:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://s3.amazonaws.com/${S3Bucket}/stepfunction/function.yml"
+      TemplateURL: !Sub "https://s3.amazonaws.com/${S3Bucket}/stepfunction/functions.yml"
       Parameters:
-        MaxTime: !Ref MaxTime
+        MaxLambdaWaitTime: !Ref MaxLambdaWaitTime
+        WaitingTime: !Ref WaitingTime
+        OwnerName: !Ref OwnerName
+        StackName: !Ref StackName
+        Environment: !Ref Environment
+
+  StateMachineStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://s3.amazonaws.com/${S3Bucket}/stepfunction/statemachine.yml"
+      Parameters:
+        LambdaClean: !GetAtt LambdaStack.Outputs.CleaningLambda
+        LambdaWait: !GetAtt LambdaStack.Outputs.WaitingLambda
+        RetryTimes: !Ref RetryTimes
         OwnerName: !Ref OwnerName
         StackName: !Ref StackName
         Environment: !Ref Environment
 
   ########## Budget Stack Creation ########
-
   BudgetStack:
     Type: "AWS::CloudFormation::Stack"
     Properties:
       TemplateURL: !Sub "https://s3.amazonaws.com/${S3Bucket}/budget/budget.yml"
       Parameters:
         TriggerBudget: !Ref BudgetAmout
-        LambdaFunction: !GetAtt LambdaStack.Outputs.CleaningLambda
+        LambdaFunction: !GetAtt StateMachineStack.Outputs.StartCleaning

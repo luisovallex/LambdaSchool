@@ -1,0 +1,183 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  State machine to stop resources
+
+Parameters:
+  LambdaClean:
+    Type: String
+    Description: Lambda function that stops the resources
+
+  LambdaWait:
+    Type: String
+    Description: Lambda function that waits (back off)
+
+  RetryTimes:
+    Type: Number
+    Default: 3
+    Description: Number of times it will retry waiting for the resources
+
+  OwnerName:
+    Type: String
+    Default: ricardo
+    Description: An arbitrary tag name for the owner of these resources
+
+  StackName:
+    Type: String
+    Description: The name of the stack to which these resources belong
+
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [ prod, staging, dev, qa ]
+    Description: Environment name to append to resources names and tags
+
+Resources:
+
+  ########## State Machine Role ##########
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - !Sub states.${AWS::Region}.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: ExecutionRolePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: "*"
+  
+  ########## State Machine Definition ##########
+  StateMachineDefinition:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn: !GetAtt [ ExecutionRole, Arn ]
+      DefinitionString:
+        !Sub
+          - |-
+            {
+              "Comment": "State machine that stops and checks instances status",
+              "StartAt": "Params",
+              "States":{
+                "Params":{
+                  "Type": "Pass",
+                  "Result":1,
+                  "ResultPath": "$.Iteration",
+                  "Next": "CleanResources"
+                },
+                "CleanResources":{
+                  "Type": "Task",
+                  "Resource": "${CleanARN}",
+                  "Next": "Decition"
+                },
+                "WaitingState":{
+                  "Type": "Task",
+                  "Resource": "${WaitARN}",
+                  "Next": "CleanResources"
+                },
+                "SnsNotification":{
+                  "Type": "Pass",
+                  "End": true
+                },
+                "Decition":{
+                  "Type": "Choice",
+                  "Choices":[
+                    {
+                      "Or":[
+                        {
+                          "Variable":"$.Stopped",
+                          "NumericEquals": 1
+                        },
+                        {
+                          "Variable":"$.Iteration",
+                          "NumericEquals": ${NIterations}
+                        }
+                      ],
+                      "Next":"SnsNotification"
+                    }
+                  ],
+                  "Default":"WaitingState"
+                }
+              }
+            }
+          - CleanARN: !Ref LambdaClean
+            WaitARN: !Ref LambdaWait
+            NIterations: !Ref RetryTimes
+
+  ########## Lambda State  Function Invoke ##########
+  StepFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSStepFunctionsFullAccess
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+  
+  ########## Lambda State  Function Invoke ##########
+  CallStepFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Lambda function that is in charge of calling step function
+      Handler: index.lambda_handler
+      Role: !GetAtt [ StepFunctionRole, Arn ]
+      Runtime: python3.6
+      FunctionName: CallStepFunction
+      Timeout: 300
+      Code:
+        ZipFile:
+          !Sub
+            - |-
+              import json
+              import boto3
+              import logging
+              logger = logging.getLogger(__name__)
+              logger.setLevel(logging.INFO)
+              def lambda_handler(event, context):
+                try:
+                  instances = []
+                  response = {}
+                  logger.info('Starting Cleaning Up...')
+                  client = boto3.client('stepfunctions')
+                  client.start_execution(stateMachineArn='${SMArn}')
+                  response = {
+                    "statusCode":200,
+                    "Message": "Executing Clean Up"
+                  }
+                  return response
+                except botocore.exceptions.ClientError as e:
+                  logger.info("Cleaning >> Error while executing cleaning: "+str(e.response['Error']['Message']))
+                  return response
+            - SMArn: !Ref StateMachineDefinition
+      Tags:
+        - Key: Name
+          Value: !Sub stfunction-call-lambda-${Environment}
+        - Key: Owner
+          Value: !Ref OwnerName
+        - Key: StackName
+          Value: !Ref StackName
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+  StateMachineFunction:
+    Description: The State Machine that manages lambda functions
+    Value: !Ref StateMachineDefinition
+
+  StartCleaning:
+    Description: Lambda function calls state machine
+    Value: !GetAtt CallStepFunction.Arn

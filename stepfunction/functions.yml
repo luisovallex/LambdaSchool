@@ -88,7 +88,7 @@ Resources:
               instances = ['i-037c369dd9b7510ec', 'i-070b04d8f0f9f680c','i-0aaf513951e58821b']
               return instances
             except botocore.exceptions.ClientError as e:
-              logger.info('Cleaning >> Error Listing EC2 Instances: '+str(err.response['Error']['Message']))
+              logger.info('Cleaning >> Error Listing EC2 Instances: '+str(e.response['Error']['Message']))
           
           def stopping_ec2(instances):
             try:
