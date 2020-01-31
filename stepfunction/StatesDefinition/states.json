@@ -33,7 +33,7 @@
               },
               {
                 "Variable":"$.Iteration",
-                "NumericEquals": ${NIterations}
+                "NumericEquals": ""
               }
             ],
             "Next":"SnsNotification"
