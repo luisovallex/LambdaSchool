@@ -58,5 +58,73 @@ Resources:
           Resource: !Ref TopicNotification
       Topics:
         - Ref: TopicNotification
-    
-    
+
+  ########## Notify Role ##########
+  NotifyRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/AmazonSNSFullAccess
+
+  ########## Notify Lambda ##########
+  Notiy:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Lambda function that handles notification
+      Handler: index.lambda_handler
+      Role: !GetAtt [ NotifyRole, Arn ]
+      Runtime: python3.6
+      FunctionName: NotifyRole
+      Timeout: 300
+      Code:
+        ZipFile:
+          !Sub
+            - |-
+              import json
+              import time
+              import botocore
+              import boto3
+              import logging
+              logger = logging.getLogger(__name__)
+              logger.setLevel(logging.INFO)
+              def lambda_handler(event, context):
+                try:
+                  client = boto3.client('sns')
+                  Iteration = event['Iteration']
+                  Stopped = event['Stopped']
+                  message = "Resources were not succesfuly stopped..."
+                  logger.info('Cleaning >> Sending Notification...')
+                  if Stopped == 1:
+                    message = "All running resources were stopped after "+str(Iteration)+" attempts"
+                  resus = client.publish(TopicArn='${TopicARN}', Message=message, Subject='Clean Notification')
+                  response = {"statusCode": 200,"Message": "Succesfull"}
+                  logger.info('Cleaning >> Finish...')
+                  return response
+                except botocore.exceptions.ClientError as e:
+                  logger.info('Cleaning >> Error while notifying: '+str(e.response['Error']['Message']))
+                  response = {"statusCode": 500,"Message": "Error"}
+                  return response
+            - TopicARN: !Ref TopicNotification
+      Tags:
+        - Key: Name
+          Value: !Sub lambda-notify-${Environment}
+        - Key: Owner
+          Value: !Ref OwnerName
+        - Key: StackName
+          Value: !Ref StackName
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+
+  NotificationLambda:
+    Description: Lambda to notify results
+    Value: !GetAtt Notiy.Arn

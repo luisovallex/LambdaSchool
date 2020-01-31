@@ -12,6 +12,10 @@ Parameters:
     Type: String
     Description: Lambda function that waits (back off)
 
+  LambdaNotification:
+    Type: String
+    Description: Lambda function that notifies when the process stops
+
   RetryTimes:
     Type: Number
     Default: 3
@@ -86,7 +90,8 @@ Resources:
                   "Next": "Clean"
                 },
                 "SnsNotification":{
-                  "Type": "Pass",
+                  "Type": "Task",
+                  "Resource":"${NotifyARN}",
                   "End": true
                 },
                 "Decision":{
@@ -111,6 +116,7 @@ Resources:
               }
             }
           - CleanARN: !Ref Cleaning
+            NotifyARN: !Ref LambdaNotification
             WaitARN: !Ref LambdaWait
             NIterations: !Ref RetryTimes
 

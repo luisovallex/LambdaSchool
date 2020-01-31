@@ -25,6 +25,12 @@ def lambda_handler(event, context):
 
 def clean_up():
     try:
+        # Cleaning Clusters
+        clusters = listing_rds_cluster('available')
+        if len(clusters) > 0:
+            logger.info('Cleaning >> Stopping RDS Aurora Clusters')
+            stopping_rds_clusters(clusters)
+
         # Cleaning EC2...
         ec2s = listing_ec2(['pending', 'running'])
         if len(ec2s) > 0:
@@ -36,12 +42,6 @@ def clean_up():
         if len(rdss) > 0:
             logger.info('Cleaning >> Stopping RDS Instances')
             stopping_rds(rdss)
-
-        # Cleaning Clusters
-        clusters = listing_rds_cluster('available')
-        if len(clusters) > 0:
-            logger.info('Cleaning >> Stopping RDS Aurora Clusters')
-            stopping_rds_clusters(clusters)
         
         # Cleaning Sage Maker
         sms = listing_sm('InService')
@@ -170,7 +170,7 @@ def check_ec2_stopped():
     for reservation in ec2_result['Reservations']:
       for instance in reservation['Instances']:
         if instance['State']['Name'] != 'stopped' and instance['State']['Name'] != 'terminated':
-            logger.info('Cleaning >> EC2 Instance in '+str(instance['State']['Name'])+' status...')
+            logger.info('Cleaning >> EC2 Instance '+instance['InstanceId']+' in '+str(instance['State']['Name'])+' status...')
             return False
     return True
   except botocore.exceptions.ClientError as err:
@@ -184,7 +184,7 @@ def check_rds_stopped():
     rds_result = rds.describe_db_instances()
     for rdsi in rds_result['DBInstances']:
       if rdsi['DBInstanceStatus'] != 'stopped':
-          logger.info('Cleaning >> RDS Instance in '+rdsi['DBInstanceStatus']+' status...')
+          logger.info('Cleaning >> RDS Instance '+rdsi['DBInstanceIdentifier']+' in '+rdsi['DBInstanceStatus']+' status...')
           return False
     return True
   except botocore.exceptions.ClientError as err:
@@ -198,7 +198,7 @@ def check_sm_stopped():
     sage_result_service = sage.list_notebook_instances()
     for n_insta in sage_result_service['NotebookInstances']:
       if n_insta['NotebookInstanceStatus'] != 'Stopped':
-          logger.info('Cleaning >> Sagemaker Instance in '+n_insta['NotebookInstanceStatus']+' status...')
+          logger.info('Cleaning >> Sagemaker Instance '+n_insta['NotebookInstanceName']+' in '+n_insta['NotebookInstanceStatus']+' status...')
           return False
     return True
   except botocore.exceptions.ClientError as err:
@@ -212,7 +212,7 @@ def check_rds_clusters():
     cluster_result = rds.describe_db_clusters()
     for cluster in cluster_result['DBClusters']:
       if cluster['Status'] != 'stopped':
-          logger.info('Cleaning >> RDS Aurora Cluster in '+cluster['Status'] +' status...')
+          logger.info('Cleaning >> RDS Aurora Cluster '+cluster['DBClusterIdentifier']+' in '+cluster['Status'] +' status...')
           return False
     return True
   except botocore.exceptions.ClientError as err:
