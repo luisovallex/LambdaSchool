@@ -51,6 +51,7 @@ Resources:
     Properties:
       TemplateURL: !Sub "https://s3.amazonaws.com/${S3Bucket}/stepfunction/functions.yml"
       Parameters:
+        BucketS3: !Ref S3Bucket
         MaxLambdaWaitTime: !Ref MaxLambdaWaitTime
         WaitingTime: !Ref WaitingTime
         OwnerName: !Ref OwnerName
@@ -62,11 +63,7 @@ Resources:
     Properties:
       TemplateURL: !Sub "https://s3.amazonaws.com/${S3Bucket}/stepfunction/statemachine.yml"
       Parameters:
-        CleaningEC2: !GetAtt LambdaStack.Outputs.CleanEC2
-        CleaningRDS: !GetAtt LambdaStack.Outputs.CleanRDS
-        CleaningSM: !GetAtt LambdaStack.Outputs.CleanSM
-        CleaningCluster: !GetAtt LambdaStack.Outputs.CleanCluster
-        Checking: !GetAtt LambdaStack.Outputs.Check
+        Cleaning: !GetAtt LambdaStack.Outputs.CleanUp
         LambdaWait: !GetAtt LambdaStack.Outputs.WaitingLambda
         RetryTimes: !Ref RetryTimes
         OwnerName: !Ref OwnerName

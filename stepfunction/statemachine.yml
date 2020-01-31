@@ -4,25 +4,9 @@ Description: >-
 
 Parameters:
 
-  CleaningEC2:
+  Cleaning:
     Type: String
-    Description: Lambda function that stops the resources ec2
-  
-  CleaningRDS:
-    Type: String
-    Description: Lambda function that stops the resources rds
-
-  CleaningSM:
-    Type: String
-    Description: Lambda function that stops the resources sm
-
-  CleaningCluster:
-    Type: String
-    Description: Lambda function that stops the resources clusters
-
-  Checking:
-    Type: String
-    Description: Lambda function that checks
+    Description: Lambda function that stops the resources 
 
   LambdaWait:
     Type: String
@@ -89,43 +73,23 @@ Resources:
                   "Type": "Pass",
                   "Result":1,
                   "ResultPath": "$.Iteration",
-                  "Next": "CleanEC2"
+                  "Next": "Clean"
                 },
-                "CleanEC2":{
+                "Clean":{
                   "Type": "Task",
-                  "Resource": "${CleanEC2ARN}",
-                  "Next": "CleanRDS"
-                },
-                "CleanRDS":{
-                  "Type": "Task",
-                  "Resource": "${CleanRDSARN}",
-                  "Next": "CleanSM"
-                },
-                "CleanSM":{
-                  "Type": "Task",
-                  "Resource": "${CleanSMARN}",
-                  "Next": "CleanClusters"
-                },
-                "CleanClusters":{
-                  "Type": "Task",
-                  "Resource": "${CleanClusterARN}",
-                  "Next": "CheckingState"
-                },
-                "CheckingState":{
-                  "Type": "Task",
-                  "Resource": "${CheckingARN}",
-                  "Next": "Decition"
+                  "Resource": "${CleanARN}",
+                  "Next": "Decision"
                 },
                 "WaitingState":{
                   "Type": "Task",
                   "Resource": "${WaitARN}",
-                  "Next": "CleanEC2"
+                  "Next": "Clean"
                 },
                 "SnsNotification":{
                   "Type": "Pass",
                   "End": true
                 },
-                "Decition":{
+                "Decision":{
                   "Type": "Choice",
                   "Choices":[
                     {
@@ -142,15 +106,11 @@ Resources:
                       "Next":"SnsNotification"
                     }
                   ],
-                "Default":"WaitingState"
+                  "Default":"WaitingState"
                 }
               }
             }
-          - CleanEC2ARN: !Ref CleaningEC2
-            CleanRDSARN: !Ref CleaningRDS
-            CleanSMARN: !Ref CleaningSM
-            CleanClusterARN: !Ref CleaningCluster
-            CheckingARN: !Ref Checking
+          - CleanARN: !Ref Cleaning
             WaitARN: !Ref LambdaWait
             NIterations: !Ref RetryTimes
 
