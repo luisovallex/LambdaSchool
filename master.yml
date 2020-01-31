@@ -10,8 +10,8 @@ Parameters:
 
   MaxLambdaWaitTime:
     Type: Number
-    Default: 300
-    AllowedValues: [300, 600, 900]
+    Default: 10
+    AllowedValues: [5, 10, 15]
     Description: Timeout for lambda functions
 
   WaitingTime:
@@ -62,7 +62,11 @@ Resources:
     Properties:
       TemplateURL: !Sub "https://s3.amazonaws.com/${S3Bucket}/stepfunction/statemachine.yml"
       Parameters:
-        LambdaClean: !GetAtt LambdaStack.Outputs.CleaningLambda
+        CleaningEC2: !GetAtt LambdaStack.Outputs.CleanEC2
+        CleaningRDS: !GetAtt LambdaStack.Outputs.CleanRDS
+        CleaningSM: !GetAtt LambdaStack.Outputs.CleanSM
+        CleaningCluster: !GetAtt LambdaStack.Outputs.CleanCluster
+        Checking: !GetAtt LambdaStack.Outputs.Check
         LambdaWait: !GetAtt LambdaStack.Outputs.WaitingLambda
         RetryTimes: !Ref RetryTimes
         OwnerName: !Ref OwnerName
