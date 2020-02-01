@@ -17,6 +17,8 @@ def lambda_handler(event, context):
     else:
         response = {"statusCode": 200,"Message": "Succesful", "Iteration": Iteration, "Stopped": 0}
         logger.info('Clean >> Resources are still running...')
+    report = " Report: \n"+ec2_report() + "\n" + rds_intances() + "\n" + rds_cluster() + "\n" + sm_instances()
+    response['Message'] = report
     return response
   except Exception as e:
     logger.info('Error while executing Cleaning: '+str(e))
@@ -218,3 +220,72 @@ def check_rds_clusters():
   except botocore.exceptions.ClientError as err:
     logger.info('Cleaning >> Error Checking all RDS Clusters: '+str(err.response['Error']['Message']))
     return False
+
+def ec2_report():
+  try:
+    ec2 = boto3.client('ec2')
+    ec2_result = ec2.describe_instances()
+    stopped = " - Stopped: \n"
+    non_stopped = "- Non Stopped: \n"
+    for reservation in ec2_result['Reservations']:
+      for instance in reservation['Instances']:
+        if instance['State']['Name'] == 'stopped':
+          stopped += " * EC2 Instance "+instance['InstanceId']+"\n"
+        elif instance['State']['Name'] != 'terminated':
+          non_stopped += " * EC2 Instance "+instance['InstanceId']+" | Status: "+instance['State']['Name'] + "\n"
+    res = "---------- EC2 Instances ----------\n" + stopped + ""+ non_stopped+"\n"
+    return res
+  except botocore.exceptions.ClientError as e:
+    logger.info('Cleaning >> Error while Reporting EC2: '+str(e.response['Error']['Message']))
+    return ""
+
+def rds_intances():
+  try:
+    rds = boto3.client('rds')
+    stopped = " - Stopped: \n"
+    non_stopped = "- Non Stopped: \n"
+    rds_result = rds.describe_db_instances()
+    for rdsi in rds_result['DBInstances']:
+      if rdsi['DBInstanceStatus'] == 'stopped':
+        stopped += " * RDS Instance "+rdsi['DBInstanceIdentifier']+"\n"
+      else:
+        non_stopped += " * RDS Instance "+rdsi['DBInstanceIdentifier']+" | Status: "+rdsi['DBInstanceStatus']+"\n"
+    res = "---------- RDS Instances ----------\n" + stopped + ""+ non_stopped+"\n"
+    return res
+  except botocore.exceptions.ClientError as err:
+    logger.info('Cleaning >> Error while Reporting RDS: '+str(err.response['Error']['Message']))
+    return ""
+
+def rds_cluster():
+  try:
+    rds = boto3.client('rds')
+    stopped = " - Stopped: \n"
+    non_stopped = "- Non Stopped: \n"
+    cluster_result = rds.describe_db_clusters()
+    for cluster in cluster_result['DBClusters']:
+      if cluster['Status'] == 'stopped':
+        stopped += " * RDS Cluster "+cluster['DBClusterIdentifier']+"\n"
+      else:
+        non_stopped += " * RDS Cluser "+cluster['DBClusterIdentifier']+" | Status: "+cluster['Status']+"\n"
+    res = "---------- RDS Clusters ----------\n" + stopped + ""+ non_stopped+"\n"
+    return res
+  except botocore.exceptions.ClientError as err:
+    logger.info('Cleaning >> Error while Reporting RDS Cluster: '+str(err.response['Error']['Message']))
+    return ""
+
+def sm_instances():
+  try:
+    sage = boto3.client('sagemaker')
+    stopped = " - Stopped: \n"
+    non_stopped = "- Non Stopped: \n"
+    sage_result_service = sage.list_notebook_instances()
+    for n_insta in sage_result_service['NotebookInstances']:
+      if n_insta['NotebookInstanceStatus'] == 'Stopped':
+        stopped += " * Sage Make Instance: "+n_insta['NotebookInstanceName']+"\n"
+      else:
+        non_stopped += " * Sage Maker Instance "+n_insta['NotebookInstanceName']+" | Status: "+n_insta['NotebookInstanceStatus']+"\n"
+    res = "---------- Sagemaker Instances ----------\n" + stopped + ""+ non_stopped+"\n"
+    return res
+  except botocore.exceptions.ClientError as err:
+    logger.info('Cleaning >> Error while Reporting Sage Maker Intances: '+str(err.response['Error']['Message']))
+    return ""

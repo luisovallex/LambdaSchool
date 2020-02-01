@@ -73,6 +73,9 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
         - arn:aws:iam::aws:policy/AmazonSNSFullAccess
+        - arn:aws:iam::aws:policy/AmazonEC2FullAccess
+        - arn:aws:iam::aws:policy/AmazonRDSFullAccess
+        - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
 
   ########## Notify Lambda ##########
   Notiy:
@@ -100,10 +103,8 @@ Resources:
                   client = boto3.client('sns')
                   Iteration = event['Iteration']
                   Stopped = event['Stopped']
-                  message = "Resources were not succesfuly stopped..."
+                  message = event['Message']
                   logger.info('Cleaning >> Sending Notification...')
-                  if Stopped == 1:
-                    message = "All running resources were stopped after "+str(Iteration)+" attempts"
                   resus = client.publish(TopicArn='${TopicARN}', Message=message, Subject='Clean Notification')
                   response = {"statusCode": 200,"Message": "Succesfull"}
                   logger.info('Cleaning >> Finish...')
