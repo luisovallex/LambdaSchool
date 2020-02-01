@@ -1,37 +1,25 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: >-
-  State machine to shut down resources
+  State machine to stop resources
 
 Parameters:
 
-  ListEC2Arn:
+  Cleaning:
     Type: String
-    Description: ARN of the function used to list EC2
+    Description: Lambda function that stops the resources 
 
-  StopEC2:
+  LambdaWait:
     Type: String
-    Description: ARN of the function used to stop EC2
+    Description: Lambda function that waits (back off)
 
-  ListRDS:
+  LambdaNotification:
     Type: String
-    Description: ARN of the function used to list RDS
+    Description: Lambda function that notifies when the process stops
 
-  StopRDS:
-    Type: String
-    Description: ARN of the function used to stop RDS
-
-  ListSM:
-    Type: String
-    Description: ARN of the function used to list SM
-
-  StopSM:
-    Type: String
-    Description: ARN of the function used to stop SM
-
-  MaxiConcurrency:
+  RetryTimes:
     Type: Number
-    Default: 5
-    Description: Concurrent executions in state machine in a map state
+    Default: 3
+    Description: Number of times it will retry waiting for the resources
 
   OwnerName:
     Type: String
@@ -72,7 +60,7 @@ Resources:
                 Action:
                   - lambda:InvokeFunction
                 Resource: "*"
-
+  
   ########## State Machine Definition ##########
   StateMachineDefinition:
     Type: AWS::StepFunctions::StateMachine
@@ -82,69 +70,55 @@ Resources:
         !Sub
           - |-
             {
-              "Comment": "Parallel execution",
-              "StartAt": "ShuttingParallel",
+              "Comment": "State machine that stops and checks instances status",
+              "StartAt": "Params",
               "States":{
-                "ShuttingParallel":{
-                  "Type": "Parallel",
-                  "End": true,
-                  "Branches":[
+                "Params":{
+                  "Type": "Pass",
+                  "Result":1,
+                  "ResultPath": "$.Iteration",
+                  "Next": "Clean"
+                },
+                "Clean":{
+                  "Type": "Task",
+                  "Resource": "${CleanARN}",
+                  "Next": "Decision"
+                },
+                "WaitingState":{
+                  "Type": "Task",
+                  "Resource": "${WaitARN}",
+                  "Next": "Clean"
+                },
+                "SnsNotification":{
+                  "Type": "Task",
+                  "Resource":"${NotifyARN}",
+                  "End": true
+                },
+                "Decision":{
+                  "Type": "Choice",
+                  "Choices":[
                     {
-                      "StartAt": "ListingEC2",
-                      "States":{
-                        "ListingEC2":{
-                          "Type": "Task",
-                          "Resource": "${ListEC2Arn}",
-                          "Next": "StoppingEC2"
+                      "Or":[
+                        {
+                          "Variable":"$.Stopped",
+                          "NumericEquals": 1
                         },
-                        "StoppingEC2": {
-                          "Type": "Task",
-                          "Resource": "${StopEC2}",
-                          "End": true
+                        {
+                          "Variable":"$.Iteration",
+                          "NumericEquals": ${NIterations}
                         }
-                      }
-                    },
-                    {
-                      "StartAt": "ListingRDS",
-                      "States":{
-                        "ListingRDS":{
-                          "Type": "Task",
-                          "Resource": "${ListRDS}",
-                          "Next": "StoppingRDS"
-                        },
-                        "StoppingRDS": {
-                          "Type": "Task",
-                          "Resource": "${StopRDS}",
-                          "End": true
-                        }
-                      }
-                    },
-                    {
-                      "StartAt": "ListingSM",
-                      "States":{
-                        "ListingSM":{
-                          "Type": "Task",
-                          "Resource": "${ListSM}",
-                          "Next": "StoppingSM"
-                        },
-                        "StoppingSM":{
-                          "Type": "Task",
-                          "Resource": "${StopSM}",
-                          "End": true
-                        }
-                      }
+                      ],
+                      "Next":"SnsNotification"
                     }
-                  ]
+                  ],
+                  "Default":"WaitingState"
                 }
               }
             }
-          - ListEC2Arn: !Ref ListEC2Arn
-            StopEC2: !Ref StopEC2
-            ListRDS: !Ref ListRDS
-            StopRDS: !Ref StopRDS
-            ListSM: !Ref ListSM
-            StopSM: !Ref StopSM
-            MaxiConcurrency: !Ref MaxiConcurrency
+          - CleanARN: !Ref Cleaning
+            NotifyARN: !Ref LambdaNotification
+            WaitARN: !Ref LambdaWait
+            NIterations: !Ref RetryTimes
 
   ########## Lambda State  Function Invoke ##########
   StepFunctionRole:
@@ -160,7 +134,7 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AWSStepFunctionsFullAccess
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-
+  
   ########## Lambda State  Function Invoke ##########
   CallStepFunction:
     Type: AWS::Lambda::Function
@@ -192,8 +166,8 @@ Resources:
                     "Message": "Executing Clean Up"
                   }
                   return response
-                except Exception as e:
-                  response["errorMessage"] = str(e)
+                except botocore.exceptions.ClientError as e:
+                  logger.info("Cleaning >> Error while executing cleaning: "+str(e.response['Error']['Message']))
                   return response
             - SMArn: !Ref StateMachineDefinition
       Tags:

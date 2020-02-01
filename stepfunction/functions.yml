@@ -1,0 +1,159 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  Lambda Functions that are used for the state machine
+
+Parameters:
+
+  BucketS3:
+    Type: String
+    Description: S3 Bucket where Lambda clean code is hosted
+
+  TimeOut:
+    Type: Number
+    Default: 600
+    AllowedValues: [ 300, 600, 900]
+    Description: Time out for lambdas
+
+  MaxLambdaWaitTime:
+    Type: Number
+    Default: 15
+    AllowedValues: [ 5, 10, 15]
+    Description: Max time waiting lambda will be up in Minutes
+
+  WaitingTime:
+    Type: Number
+    Default: 2
+    Description: Time in minutes waiting
+
+  OwnerName:
+    Type: String
+    Default: ricardo
+    Description: An arbitrary tag name for the owner of these resources
+
+  StackName:
+    Type: String
+    Description: The name of the stack to which these resources belong
+
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [ prod, staging, dev, qa ]
+    Description: Environment name to append to resources names and tags
+
+Resources:
+
+  ########## Lambda Permisions ##########
+  CleanUpRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEC2FullAccess
+        - arn:aws:iam::aws:policy/AmazonRDSFullAccess
+        - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+  
+  ########## Lambda Code EC2 ##########
+  Cleaning:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Lambda function that stops the resources
+      Handler: lambda.lambda_handler
+      Role: !GetAtt [ CleanUpRole, Arn ]
+      Runtime: python3.6
+      FunctionName: cleaning_lambda
+      Timeout: !Ref TimeOut
+      Code:
+        S3Bucket: !Ref BucketS3
+        S3Key: stepfunction/Code/lambda07.zip
+      Tags:
+        - Key: Name
+          Value: !Sub lambda-clean-${Environment}
+        - Key: Owner
+          Value: !Ref OwnerName
+        - Key: StackName
+          Value: !Ref StackName
+        - Key: Environment
+          Value: !Ref Environment
+
+  ########## Lambda Waiting Role ##########
+  WaitingRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  ########## Lambda Waiting Code ##########
+  Waiting:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Lambda function that waits
+      Handler: index.lambda_handler
+      Role: !GetAtt [ WaitingRole, Arn ]
+      Runtime: python3.6
+      FunctionName: WaitingLambda
+      Timeout: 900
+      Code:
+        ZipFile:
+          !Sub
+            - |-
+              import json
+              import time
+              import logging
+              logger = logging.getLogger(__name__)
+              logger.setLevel(logging.INFO)
+              def lambda_handler(event, context):
+                try:
+                  Iteration = event['Iteration']
+                  MAX_LAMBDA = ${MaxiL} # MIN
+                  MIN = ${TimeWait} # MINUTES
+                  logger.info('Cleaning >> Waiting...')
+                  MIN = round(MIN)
+                  i = 0
+                  while i < MIN and i < MAX_LAMBDA:
+                    time.sleep(60)
+                    logger.info('Cleaning >> Waiting '+str(i+1)+'min out of '+str(MIN)+'min...')
+                    i += 1
+                  logger.info('Cleaning >> Finish waiting...')
+                  response = {"statusCode": 200,"Message": "Succesful", "Iteration": Iteration + 1, "Stopped": 0}
+                  return response
+                except Exception as e:
+                  logger.info('Cleaning >> Error while waiting: '+str(e))
+                  response = {"statusCode": 500,"Message": "Error", "Iteration": Iteration + 1, "Stopped": 0}
+                  return response
+            - TimeWait: !Ref WaitingTime
+              MaxiL: !Ref MaxLambdaWaitTime
+      Tags:
+        - Key: Name
+          Value: !Sub lambda-wait-${Environment}
+        - Key: Owner
+          Value: !Ref OwnerName
+        - Key: StackName
+          Value: !Ref StackName
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+
+  ########## Clean Lambda ##########
+  CleanUp:
+    Description: ARN Lambda function for cleaning resources
+    Value: !GetAtt Cleaning.Arn
+
+  ########## Waiting Lambda ##########
+  WaitingLambda:
+    Description: ARN Lambda function for waiting
+    Value: !GetAtt Waiting.Arn

@@ -8,16 +8,26 @@ Parameters:
     Type: String
     Description: S3 bucket where the templates are stored
 
-  MaxTime:
+  MaxLambdaWaitTime:
     Type: Number
-    Default: 300
-    AllowedValues: [300, 600, 900]
+    Default: 10
+    AllowedValues: [5, 10, 15]
     Description: Timeout for lambda functions
 
-  MaxiConcurrency:
+  WaitingTime:
     Type: Number
-    Default: 5
-    Description: Concurrent executions in state machine in a map state
+    Default: 2
+    Description: Time in minutes waiting
+  
+  EmailAddress:
+    Type: String
+    Default: ricardo@nclouds.com
+    Description: Email to send notification
+
+  RetryTimes:
+    Type: Number
+    Default: 3
+    Description: Number of times it will retry waiting for the resources
 
   OwnerName:
     Type: String
@@ -44,19 +54,43 @@ Resources:
   LambdaStack:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub "https://s3.amazonaws.com/${S3Bucket}/stepfunction/function.yml"
+      TemplateURL: !Sub "https://s3.amazonaws.com/${S3Bucket}/stepfunction/functions.yml"
       Parameters:
-        MaxTime: !Ref MaxTime
+        BucketS3: !Ref S3Bucket
+        MaxLambdaWaitTime: !Ref MaxLambdaWaitTime
+        WaitingTime: !Ref WaitingTime
+        OwnerName: !Ref OwnerName
+        StackName: !Ref StackName
+        Environment: !Ref Environment
+
+  NotificationStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://s3.amazonaws.com/${S3Bucket}/notification/snsnotification.yml"
+      Parameters:
+        EmailAddress: !Ref EmailAddress
+        OwnerName: !Ref OwnerName
+        StackName: !Ref StackName
+        Environment: !Ref Environment
+
+  StateMachineStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub "https://s3.amazonaws.com/${S3Bucket}/stepfunction/statemachine.yml"
+      Parameters:
+        Cleaning: !GetAtt LambdaStack.Outputs.CleanUp
+        LambdaWait: !GetAtt LambdaStack.Outputs.WaitingLambda
+        LambdaNotification: !GetAtt NotificationStack.Outputs.NotificationLambda
+        RetryTimes: !Ref RetryTimes
         OwnerName: !Ref OwnerName
         StackName: !Ref StackName
         Environment: !Ref Environment
 
   ########## Budget Stack Creation ########
-
   BudgetStack:
     Type: "AWS::CloudFormation::Stack"
     Properties:
       TemplateURL: !Sub "https://s3.amazonaws.com/${S3Bucket}/budget/budget.yml"
       Parameters:
         TriggerBudget: !Ref BudgetAmout
-        LambdaFunction: !GetAtt LambdaStack.Outputs.CleaningLambda
+        LambdaFunction: !GetAtt StateMachineStack.Outputs.StartCleaning
