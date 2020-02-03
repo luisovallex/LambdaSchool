@@ -45,6 +45,8 @@ This template was built using AWS Cloudformation Nested Stacks. The *master* fil
 
 ### Parameters
 
+<center>
+
 | Parameter        | Description           | Type    |
 | ------------- |:-------------:| -----:|
 | S3Bucket      | S3 Bucket where the template is hosted | String |
@@ -57,3 +59,4 @@ This template was built using AWS Cloudformation Nested Stacks. The *master* fil
 | StackName | The name of the stack to which these resources belong      |    String |
 | Environment | Environment name to append to resources names and tags     |    String |
 
+</center>
