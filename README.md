@@ -26,6 +26,14 @@ States Diagram:
 
 ![Inf Diagram](/img/StateMachine.png)
 
+* Params: pass type state to initialize parameters for the state machine executions
+
+* Clean: Lambda function in charge of stopping instances and checking their status
+
+* Decision: choice type state in charge of deciding if the process should wait for instaces that are still running
+
+* SnsNotification: Lambda function that sends information to user email about the result of the process
+
 
 ## Infrastructure
 
