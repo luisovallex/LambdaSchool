@@ -12,15 +12,15 @@ This is the structure of how the template works:
 
 ### Elements
 
-* Budget Treshold: budget definition for the student, this will trigger an SNS Message to start the cleaning process
+* AWS Budgets: budget definition for the student, this will trigger an SNS Message to start the cleaning process
 
-* SNS Budget Trigger: SNS element that will publish a message to start the execution of the cleaning proccess
+* Amazon SNS: SNS element that will publish a message to start the execution of the cleaning proccess
 
-* State Machine Execution: Lambda in charge of executing the process in the state machine (Step Functions)
+* State Machine: Lambda in charge of executing the process in the state machine (Step Functions)
 
 * State Machine: Lambda functions orchestration to start the process of stopping EC2, RDS and Sage Maker instaces.
 
-* SNS User Email Notification: notification to the user about the results of the process.
+* SNS and Email Notification: notification to the user about the results of the process.
 
 ### State Machine
 
