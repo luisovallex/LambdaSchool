@@ -6,7 +6,7 @@ This repository contains the template for the Lambda School project. This templa
 
 This is the structure of how the template works:
 
-![Inf Diagram](/img/Diagram.png)
+![Inf Diagram](/img/LambdaSchool.png)
 
 ### Elements
 
