@@ -6,7 +6,9 @@ This repository contains the template for the Lambda School project. This templa
 
 This is the structure of how the template works:
 
-![Inf Diagram](/img/LambdaSchool.png)
+<p align="center">
+  <img src="img/LambdaSchool.png"/>
+</p>
 
 ### Elements
 
@@ -24,7 +26,9 @@ This is the structure of how the template works:
 
 States Diagram:
 
-![Inf Diagram](/img/StateMachine.png)
+<p align="center">
+  <img src="img/StateMachine.png"/>
+</p>
 
 * Params: pass type state to initialize parameters for the state machine executions
 
