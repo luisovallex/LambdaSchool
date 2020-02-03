@@ -104,6 +104,7 @@ Resources:
                   Iteration = event['Iteration']
                   Stopped = event['Stopped']
                   message = event['Message']
+                  events = event['LogEvents']
                   logger.info('Cleaning >> Sending Notification...')
                   resus = client.publish(TopicArn='${TopicARN}', Message=message, Subject='Clean Notification')
                   response = {"statusCode": 200,"Message": "Succesfull"}

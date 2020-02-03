@@ -58,6 +58,7 @@ Resources:
         - arn:aws:iam::aws:policy/AmazonRDSFullAccess
         - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/CloudWatchFullAccess
   
   ########## Lambda Code EC2 ##########
   Cleaning:
@@ -71,7 +72,7 @@ Resources:
       Timeout: !Ref TimeOut
       Code:
         S3Bucket: !Ref BucketS3
-        S3Key: stepfunction/Code/lambda07.zip
+        S3Key: stepfunction/Code/lambda08.zip
       Tags:
         - Key: Name
           Value: !Sub lambda-clean-${Environment}

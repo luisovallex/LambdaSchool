@@ -19,11 +19,22 @@ def lambda_handler(event, context):
         logger.info('Clean >> Resources are still running...')
     report = " Report: \n"+ec2_report() + "\n" + rds_intances() + "\n" + rds_cluster() + "\n" + sm_instances()
     response['Message'] = report
+    response['LogEvents'] = get_logs(context)
     return response
   except Exception as e:
     logger.info('Error while executing Cleaning: '+str(e))
     response = {"statusCode": 500,"Message": str(e), "Iteration": event['Iteration']}
     return response
+
+def get_logs(context):
+  try:
+    client = boto3.client('logs')
+    res = client.get_log_events(logGroupName=context.log_group_name,logStreamName=context.log_stream_name)
+    return res['events']
+  except botocore.exceptions.ClientError as e:
+    logger.info('Cleaning >> Error while getting logs: '+str(e.response['Error']['Message']))
+    events = {}
+    return events
 
 def clean_up():
     try:
