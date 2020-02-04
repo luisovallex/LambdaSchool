@@ -13,6 +13,14 @@ Parameters:
     Type: String
     Description: Lambda function that turn off all the resources.
 
+  OwnerName:
+    Type: String
+    Description: An arbitrary tag name for the owner of these resources
+
+  StackName:
+    Type: String
+    Description: The name of the stack to which these resources belong
+
 Resources:
 
   Topic:
@@ -22,6 +30,13 @@ Resources:
       Subscription:
         - Endpoint: !Ref LambdaFunction
           Protocol: lambda
+      Tags:
+        - Key: Name
+          Value: !Sub budget-notification-${StackName}
+        - Key: OwnerName
+          Value: !Ref OwnerName
+        - Key: StackName
+          Value: !Ref StackName
 
   Policy:
     Type: AWS::SNS::TopicPolicy

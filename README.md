@@ -19,32 +19,28 @@ The *AWS Budget* resource it's created to stablish a maximum amount of money tha
 
 * Amazon SNS: SNS element that will publish a message to start the execution of the cleaning proccess
 
-* State Machine: Lambda in charge of executing the process in the state machine (Step Functions)
-
 * State Machine: Lambda functions orchestration to start the process of stopping EC2, RDS and Sage Maker instaces.
 
 * SNS and Email Notification: notification to the user about the results of the process.
 
-### State Machine
-
-States Diagram:
-
-<p align="center">
-  <img src="img/StateMachine.png"/>
-</p>
-
-* Params: pass type state to initialize parameters for the state machine executions
-
-* Clean: Lambda function in charge of stopping instances and checking their status
-
-* Decision: choice type state in charge of deciding if the process should wait for instaces that are still running
-
-* SnsNotification: Lambda function that sends information to user email about the result of the process
-
 
 ## Infrastructure
 
-This template was built using AWS Cloudformation Nested Stacks. The *master* files is in charge to create all the resources needed.
+The following template creates the following resources
+
+<p align="center">
+  <img src="img/Infra_Lambda_School.jpeg"/>
+</p>
+
+* Budget-Notification: is an SNS Topic in charge of triggering the lambda to start the process
+
+* CallStepFunction: Lambda function that starts the state machine execution.
+
+* Cleaning_Lambda: Lambda function that lists Instances and tries to stop them. It also checks the state of the instaces.
+
+* Notify_Lambda: Lambda function in charge of sending the notification about the process to the specified email address.
+
+* Process-Notification: SNS Topic that publishes a message to the specified email address.
 
 ### Parameters
 
@@ -53,13 +49,13 @@ This template was built using AWS Cloudformation Nested Stacks. The *master* fil
 | Parameter        | Description           | Type    |
 | ------------- |:-------------:| -----:|
 | S3Bucket      | S3 Bucket where the template is hosted | String |
-| MaxLambdaWaitTime      | Timeout for lambda functions  |   Number |
-| WaitingTime | Time in minutes that the step function will wait berfore retrying      |    Number |
+| WaitingTime | Time in minutes that will wait until retrying again (1 up to 15 minutes)      |    Number |
 | EmailAddress | Email address to send notification when the cleaning process ends     |    Number |
-| RetryTimes | The number of times the process will try to clean the resources     |    Number |
-| BudgetAmout | Budget Treshold     |    Number |
-| OwnerName | An arbitrary tag name for the owner of these resources    |    String |
-| StackName | The name of the stack to which these resources belong      |    String |
-| Environment | Environment name to append to resources names and tags     |    String |
+| RetryTimes | The number of times the process will try to clean the resources if they are still running  |    Number |
+| BudgetAmout | Budget amount that will trigger the clean up process, if the billing goes higher than the amount    |    Number |
+| OwnerName   | Name of the owner of the resources, this will be used to tag resources that will be created | String
+| StackName   | Name of the stack, this will be used to tag resources that will be created | String
+
 
 </center>
+

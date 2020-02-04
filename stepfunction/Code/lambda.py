@@ -2,6 +2,7 @@ import json
 import botocore
 import boto3
 import logging
+import os
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -21,6 +22,7 @@ def lambda_handler(event, context):
     response['Message'] = report
     response['LogGroupName'] = context.log_group_name
     response['LogStreamName'] = context.log_stream_name
+    response['LambdaRegion'] = os.environ['AWS_REGION']
     return response
   except Exception as e:
     logger.info('Error while executing Cleaning: '+str(e))

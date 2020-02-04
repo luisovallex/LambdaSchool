@@ -23,18 +23,11 @@ Parameters:
 
   OwnerName:
     Type: String
-    Default: ricardo
     Description: An arbitrary tag name for the owner of these resources
 
   StackName:
     Type: String
     Description: The name of the stack to which these resources belong
-
-  Environment:
-    Type: String
-    Default: dev
-    AllowedValues: [ prod, staging, dev, qa ]
-    Description: Environment name to append to resources names and tags
 
 Resources:
 
@@ -60,6 +53,13 @@ Resources:
                 Action:
                   - lambda:InvokeFunction
                 Resource: "*"
+      Tags:
+        - Key: Name
+          Value: !Sub execution-role-${StackName}
+        - Key: OwnerName
+          Value: !Ref OwnerName
+        - Key: StackName
+          Value: !Ref StackName
   
   ########## State Machine Definition ##########
   StateMachineDefinition:
@@ -119,6 +119,13 @@ Resources:
             NotifyARN: !Ref LambdaNotification
             WaitARN: !Ref LambdaWait
             NIterations: !Ref RetryTimes
+      Tags:
+        - Key: Name
+          Value: !Sub statemachine-${StackName}
+        - Key: OwnerName
+          Value: !Ref OwnerName
+        - Key: StackName
+          Value: !Ref StackName
 
   ########## Lambda State  Function Invoke ##########
   StepFunctionRole:
@@ -134,6 +141,13 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AWSStepFunctionsFullAccess
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Tags:
+        - Key: Name
+          Value: !Sub stepfunction-role-${StackName}
+        - Key: OwnerName
+          Value: !Ref OwnerName
+        - Key: StackName
+          Value: !Ref StackName
   
   ########## Lambda State  Function Invoke ##########
   CallStepFunction:
@@ -172,13 +186,11 @@ Resources:
             - SMArn: !Ref StateMachineDefinition
       Tags:
         - Key: Name
-          Value: !Sub stfunction-call-lambda-${Environment}
-        - Key: Owner
+          Value: !Sub callstepfunction-${StackName}
+        - Key: OwnerName
           Value: !Ref OwnerName
         - Key: StackName
           Value: !Ref StackName
-        - Key: Environment
-          Value: !Ref Environment
 
 Outputs:
   StateMachineFunction:

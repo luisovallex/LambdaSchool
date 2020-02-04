@@ -24,21 +24,14 @@ Parameters:
     Type: Number
     Default: 2
     Description: Time in minutes waiting
-
+  
   OwnerName:
     Type: String
-    Default: ricardo
     Description: An arbitrary tag name for the owner of these resources
 
   StackName:
     Type: String
     Description: The name of the stack to which these resources belong
-
-  Environment:
-    Type: String
-    Default: dev
-    AllowedValues: [ prod, staging, dev, qa ]
-    Description: Environment name to append to resources names and tags
 
 Resources:
 
@@ -58,6 +51,13 @@ Resources:
         - arn:aws:iam::aws:policy/AmazonRDSFullAccess
         - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Tags:
+        - Key: Name
+          Value: !Sub cleanup-role-${StackName}
+        - Key: OwnerName
+          Value: !Ref OwnerName
+        - Key: StackName
+          Value: !Ref StackName
   
   ########## Lambda Code EC2 ##########
   Cleaning:
@@ -71,16 +71,14 @@ Resources:
       Timeout: !Ref TimeOut
       Code:
         S3Bucket: !Ref BucketS3
-        S3Key: stepfunction/Code/lambda02.zip
+        S3Key: stepfunction/Code/lambda05.zip
       Tags:
         - Key: Name
-          Value: !Sub lambda-clean-${Environment}
-        - Key: Owner
+          Value: !Sub cleaning-lambda-${StackName}
+        - Key: OwnerName
           Value: !Ref OwnerName
         - Key: StackName
           Value: !Ref StackName
-        - Key: Environment
-          Value: !Ref Environment
 
   ########## Lambda Waiting Role ##########
   WaitingRole:
@@ -95,6 +93,13 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Tags:
+        - Key: Name
+          Value: !Sub waiting-role-${StackName}
+        - Key: OwnerName
+          Value: !Ref OwnerName
+        - Key: StackName
+          Value: !Ref StackName
 
   ########## Lambda Waiting Code ##########
   Waiting:
@@ -138,13 +143,11 @@ Resources:
               MaxiL: !Ref MaxLambdaWaitTime
       Tags:
         - Key: Name
-          Value: !Sub lambda-wait-${Environment}
-        - Key: Owner
+          Value: !Sub waiting-lambda-${StackName}
+        - Key: OwnerName
           Value: !Ref OwnerName
         - Key: StackName
           Value: !Ref StackName
-        - Key: Environment
-          Value: !Ref Environment
 
 Outputs:
 

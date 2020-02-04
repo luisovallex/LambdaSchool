@@ -8,16 +8,12 @@ Parameters:
     Type: String
     Description: S3 bucket where the templates are stored
 
-  MaxLambdaWaitTime:
-    Type: Number
-    Default: 10
-    AllowedValues: [5, 10, 15]
-    Description: Timeout for lambda functions
-
   WaitingTime:
     Type: Number
     Default: 2
-    Description: Time in minutes waiting
+    MinValue: 1
+    MaxValue: 15
+    Description: Time in minutes that will wait until retrying again (1 up to 15 minutes)
   
   EmailAddress:
     Type: String
@@ -29,24 +25,17 @@ Parameters:
     Default: 3
     Description: Number of times it will retry waiting for the resources
 
+  BudgetAmout:
+    Type: Number
+    Description: Budget amount that would stop all the resources.
+
   OwnerName:
     Type: String
-    Default: ricardo@nclouds.com
     Description: An arbitrary tag name for the owner of these resources
 
   StackName:
     Type: String
     Description: The name of the stack to which these resources belong
-
-  Environment:
-    Type: String
-    Default: dev
-    AllowedValues: [ prod, staging, dev, qa ]
-    Description: Environment name to append to resources names and tags
-
-  BudgetAmout:
-    Type: Number
-    Description: Budget amount that would stop all the resources.
 
 Resources:
 
@@ -57,11 +46,9 @@ Resources:
       TemplateURL: !Sub "https://s3.amazonaws.com/${S3Bucket}/stepfunction/functions.yml"
       Parameters:
         BucketS3: !Ref S3Bucket
-        MaxLambdaWaitTime: !Ref MaxLambdaWaitTime
         WaitingTime: !Ref WaitingTime
         OwnerName: !Ref OwnerName
         StackName: !Ref StackName
-        Environment: !Ref Environment
 
   NotificationStack:
     Type: AWS::CloudFormation::Stack
@@ -71,7 +58,6 @@ Resources:
         EmailAddress: !Ref EmailAddress
         OwnerName: !Ref OwnerName
         StackName: !Ref StackName
-        Environment: !Ref Environment
 
   StateMachineStack:
     Type: AWS::CloudFormation::Stack
@@ -84,7 +70,6 @@ Resources:
         RetryTimes: !Ref RetryTimes
         OwnerName: !Ref OwnerName
         StackName: !Ref StackName
-        Environment: !Ref Environment
 
   ########## Budget Stack Creation ########
   BudgetStack:
@@ -94,3 +79,5 @@ Resources:
       Parameters:
         TriggerBudget: !Ref BudgetAmout
         LambdaFunction: !GetAtt StateMachineStack.Outputs.StartCleaning
+        OwnerName: !Ref OwnerName
+        StackName: !Ref StackName
