@@ -73,9 +73,7 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
         - arn:aws:iam::aws:policy/AmazonSNSFullAccess
-        - arn:aws:iam::aws:policy/AmazonEC2FullAccess
-        - arn:aws:iam::aws:policy/AmazonRDSFullAccess
-        - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
+        - arn:aws:iam::aws:policy/CloudWatchFullAccess
 
   ########## Notify Lambda ##########
   Notiy:
@@ -104,7 +102,6 @@ Resources:
                   Iteration = event['Iteration']
                   Stopped = event['Stopped']
                   message = event['Message']
-                  events = event['LogEvents']
                   logger.info('Cleaning >> Sending Notification...')
                   resus = client.publish(TopicArn='${TopicARN}', Message=message, Subject='Clean Notification')
                   response = {"statusCode": 200,"Message": "Succesfull"}
