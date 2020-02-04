@@ -102,8 +102,11 @@ Resources:
                   Iteration = event['Iteration']
                   Stopped = event['Stopped']
                   message = event['Message']
+                  GroupName = event['LogGroupName']
+                  StreamName = event['LogStreamName']
+                  logs = get_logs(GroupName, StreamName)
                   logger.info('Cleaning >> Sending Notification...')
-                  resus = client.publish(TopicArn='${TopicARN}', Message=message, Subject='Clean Notification')
+                  resus = client.publish(TopicArn='${TopicARN}', Message=message + logs, Subject='Clean Notification')
                   response = {"statusCode": 200,"Message": "Succesfull"}
                   logger.info('Cleaning >> Finish...')
                   return response
@@ -111,6 +114,18 @@ Resources:
                   logger.info('Cleaning >> Error while notifying: '+str(e.response['Error']['Message']))
                   response = {"statusCode": 500,"Message": "Error"}
                   return response
+              
+              def get_logs(GroupName, StreamName):
+                try:
+                  logs = ""
+                  client = boto3.client('logs')
+                  res = client.get_log_events(logGroupName=GroupName,logStreamName=StreamName)
+                  for event in res['events']:
+                    logs += str(event['timestamp'])+" "+str(event['message'])+"\n"
+                  return logs
+                except botocore.exceptions.ClientError as e:
+                  logger.info('Cleaning >> Error while getting logs: '+str(e.response['Error']['Message']))
+                  return ""
             - TopicARN: !Ref TopicNotification
       Tags:
         - Key: Name
