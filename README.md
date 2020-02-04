@@ -1,14 +1,17 @@
 # LambdaSchool
 
-This repository contains the template for the Lambda School project. This template is in charge of stopping EC2, RDS and Sage Maker instaces when the estimated budget is reached.
+This repository contains the template for the Lambda School project. This template is in charge of stopping EC2, RDS and SageMaker instaces when the estimated budget is reached.
 
-## LambdaSchool Diagram
-
-This is the structure of how the template works:
+## LambdaSchool Flowchart
 
 <p align="center">
   <img src="img/LambdaSchool.png"/>
 </p>
+
+### How it works?
+
+The *AWS Budget* resource it's created to stablish a maximum amount of money that can be spent. When the cost of the resources exceed the 100% of the stablished budget, it would activate an *AWS SNS (Simple Notification Service)* to create a *Topic* and publish notifications in all the subscribers, in this case a *Lambda Function*. 
+
 
 ### Elements
 
