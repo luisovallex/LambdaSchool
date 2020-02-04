@@ -235,7 +235,9 @@ def ec2_report():
           stopped += " * EC2 Instance "+instance['InstanceId']+"\n"
         elif instance['State']['Name'] != 'terminated':
           non_stopped += " * EC2 Instance "+instance['InstanceId']+" | Status: "+instance['State']['Name'] + "\n"
-    res = "---------- EC2 Instances ----------\n" + stopped + ""+ non_stopped+"\n"
+    if non_stopped == "- Non Stopped: \n":
+      non_stopped = "\n"
+    res = "---------- EC2 Instances ----------\n" + stopped + ""+ non_stopped+"---------- END ----------\n"
     return res
   except botocore.exceptions.ClientError as e:
     logger.info('Cleaning >> Error while Reporting EC2: '+str(e.response['Error']['Message']))
@@ -252,7 +254,9 @@ def rds_intances():
         stopped += " * RDS Instance "+rdsi['DBInstanceIdentifier']+"\n"
       else:
         non_stopped += " * RDS Instance "+rdsi['DBInstanceIdentifier']+" | Status: "+rdsi['DBInstanceStatus']+"\n"
-    res = "---------- RDS Instances ----------\n" + stopped + ""+ non_stopped+"\n"
+    if non_stopped == "- Non Stopped: \n":
+      non_stopped = "\n"
+    res = "---------- RDS Instances ----------\n" + stopped + ""+ non_stopped+"---------- END ----------\n"
     return res
   except botocore.exceptions.ClientError as err:
     logger.info('Cleaning >> Error while Reporting RDS: '+str(err.response['Error']['Message']))
@@ -269,7 +273,9 @@ def rds_cluster():
         stopped += " * RDS Cluster "+cluster['DBClusterIdentifier']+"\n"
       else:
         non_stopped += " * RDS Cluser "+cluster['DBClusterIdentifier']+" | Status: "+cluster['Status']+"\n"
-    res = "---------- RDS Clusters ----------\n" + stopped + ""+ non_stopped+"\n"
+    if non_stopped == "- Non Stopped: \n":
+      non_stopped = "\n"
+    res = "---------- RDS Clusters ----------\n" + stopped + ""+ non_stopped+"---------- END ----------\n"
     return res
   except botocore.exceptions.ClientError as err:
     logger.info('Cleaning >> Error while Reporting RDS Cluster: '+str(err.response['Error']['Message']))
@@ -286,7 +292,9 @@ def sm_instances():
         stopped += " * Sage Make Instance: "+n_insta['NotebookInstanceName']+"\n"
       else:
         non_stopped += " * Sage Maker Instance "+n_insta['NotebookInstanceName']+" | Status: "+n_insta['NotebookInstanceStatus']+"\n"
-    res = "---------- Sagemaker Instances ----------\n" + stopped + ""+ non_stopped+"\n"
+    if non_stopped == "- Non Stopped: \n":
+      non_stopped = "\n"
+    res = "---------- Sagemaker Instances ----------\n" + stopped + ""+ non_stopped+"---------- END ----------\n"
     return res
   except botocore.exceptions.ClientError as err:
     logger.info('Cleaning >> Error while Reporting Sage Maker Intances: '+str(err.response['Error']['Message']))
