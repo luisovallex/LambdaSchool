@@ -8,28 +8,19 @@ This repository contains the template for the Lambda School project. This templa
   <img src="img/LambdaSchool.png"/>
 </p>
 
-* **AWS Budgets**: Allows the students define a budget. It's set to send a notification to all the subscribers when the cost of the other services exceed the 100% of the defined amount of money. This resource reset's the first day of everý month.
+* **AWS Budgets**: Allows the students define a budget. It sends a notification to all the subscribers when the cost of the other services exceed the 100% of the defined amount of money. This resource reset's the first day of everý month.
 
 * **Amazon SNS**: Amazon Simple Notification Service creates a Topic and publish there, every resources subscribed to that Topic will receive a notification when the SNS get triggered.
 
-* **Lamda Function and State Machine**: Lambda in charge of executing the process in the state machine (Step Functions). Lambda functions orchestration to start the process of stopping EC2, RDS and Sage Maker instaces.
+* **Lamda Function and State Machine**: Lambda in charge of executing the process in the state machine (Step Functions). Step functionas are Lambda functions orchestration that starts the process of stopping EC2, RDS and Sage Maker instaces.
 
-* **SNS and Email Notification**: As is writted before, SNS creates a Topic and all the resources subscribed can get a notification, in this case every email selected is going to receive a message when the budget is reached and all the instaces are off.
+* **SNS and Email Notification**: SNS creates a Topic and all the resources subscribed can get a notification, in this the email given as a parameter to the template will receive a notification about results of the process.
 
-* **AWS CloudWatch**: 
-
-### How it works?
-
-The *AWS Budget* resource it's created to stablish a maximum amount of money that can be spent. When the cost of the resources exceed the 100% of the stablished budget, it would activate the *AWS SNS* to create a *Topic* and publish notifications in all the subscribers, in this case a *Lambda Function* is going to be the subscriber. 
-
-The *Lambda Function* works like that:
-
-Finally, it's important to say that at the moment all the infrastructure was created *AWS SNS* is going to send an email to the students with a subscription request. If the subscription request was accepted, the students will receive an alert telling that the EC2, the RDS and the SageMaker instances are off.
-
+* **AWS CloudWatch**: Lambda in charge of cleaning the resources sends logs to cloudwatch. This logs will be sent to the user as a cloudwatch link to see in detail the results of the process.
 
 ## Infrastructure
 
-The following template creates the following resources
+The template creates the following resources
 
 <p align="center">
   <img src="img/Infra_Lambda_School.jpeg"/>
@@ -62,3 +53,4 @@ The following template creates the following resources
 
 </center>
 
+* **Important:** When installing the template via cloudformation, it is necesary to confirm subscription that will be sent to the email provided in the parameters. This subscription is to receive the notification of the results of the process.
