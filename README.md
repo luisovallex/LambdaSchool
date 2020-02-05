@@ -52,7 +52,7 @@ The following template creates the following resources
 | Parameter        | Description           | Type    |
 | ------------- |:-------------:| -----:|
 | S3Bucket      | S3 Bucket where the template is hosted | String |
-| WaitingTime | Time in minutes that will wait until retrying again (1 up to 15 minutes)      |    Number |
+| WaitingTime | Time in seconds that will wait until retrying again      |    Number |
 | EmailAddress | Email address to send notification when the cleaning process ends     |    Number |
 | RetryTimes | The number of times the process will try to clean the resources if they are still running  |    Number |
 | BudgetAmout | Budget amount that will trigger the clean up process, if the billing goes higher than the amount    |    Number |
