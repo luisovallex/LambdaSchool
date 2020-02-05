@@ -77,12 +77,7 @@ Resources:
                   "Type": "Pass",
                   "Result":1,
                   "ResultPath": "$.Iteration",
-                  "Next": "Clean",
-                  "Retry": [{
-                    "ErrorEquals": ["States.Runtime"],
-                    "IntervalSeconds": 5,
-                    "MaxAttempts": 3
-                  }]
+                  "Next": "Clean"
                 },
                 "Clean":{
                   "Type": "Task",
@@ -101,12 +96,7 @@ Resources:
                 "WaitingState":{
                   "Type": "Wait",
                   "Seconds": ${WaitTime},
-                  "Next": "Clean",
-                  "Retry": [{
-                    "ErrorEquals": ["States.Runtime"],
-                    "IntervalSeconds": 5,
-                    "MaxAttempts": 3
-                  }]
+                  "Next": "Clean"
                 },
                 "SnsNotification":{
                   "Type": "Task",
@@ -139,12 +129,7 @@ Resources:
                       "Next":"SnsNotification"
                     }
                   ],
-                  "Default":"WaitingState",
-                  "Retry": [{
-                    "ErrorEquals": ["States.Runtime"],
-                    "IntervalSeconds": 5,
-                    "MaxAttempts": 3
-                  }]
+                  "Default":"WaitingState"
                 }
               }
             }
