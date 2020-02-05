@@ -8,9 +8,9 @@ Parameters:
     Type: String
     Description: Lambda function that stops the resources 
 
-  LambdaWait:
-    Type: String
-    Description: Lambda function that waits (back off)
+  WaitingTime:
+    Type: Number
+    Description: Time in seconds to wait between each retry
 
   LambdaNotification:
     Type: String
@@ -77,22 +77,50 @@ Resources:
                   "Type": "Pass",
                   "Result":1,
                   "ResultPath": "$.Iteration",
-                  "Next": "Clean"
+                  "Next": "Clean",
+                  "Retry": [{
+                    "ErrorEquals": ["States.Runtime"],
+                    "IntervalSeconds": 5,
+                    "MaxAttempts": 3
+                  }]
                 },
                 "Clean":{
                   "Type": "Task",
                   "Resource": "${CleanARN}",
-                  "Next": "Decision"
+                  "Next": "Decision",
+                  "Retry": [{
+                    "ErrorEquals": ["States.TaskFailed"],
+                    "IntervalSeconds": 5,
+                    "MaxAttempts": 3
+                  }],
+                  "Catch": [{
+                    "ErrorEquals": [ "States.ALL" ],
+                    "Next": "Params"
+                  }]
                 },
                 "WaitingState":{
-                  "Type": "Task",
-                  "Resource": "${WaitARN}",
-                  "Next": "Clean"
+                  "Type": "Wait",
+                  "Seconds": ${WaitTime},
+                  "Next": "Clean",
+                  "Retry": [{
+                    "ErrorEquals": ["States.Runtime"],
+                    "IntervalSeconds": 5,
+                    "MaxAttempts": 3
+                  }]
                 },
                 "SnsNotification":{
                   "Type": "Task",
                   "Resource":"${NotifyARN}",
-                  "End": true
+                  "End": true,
+                  "Retry": [{
+                    "ErrorEquals": ["States.TaskFailed"],
+                    "IntervalSeconds": 5,
+                    "MaxAttempts": 3
+                  }],
+                  "Catch": [{
+                    "ErrorEquals": [ "States.ALL" ],
+                    "Next": "Params"
+                  }]
                 },
                 "Decision":{
                   "Type": "Choice",
@@ -111,13 +139,18 @@ Resources:
                       "Next":"SnsNotification"
                     }
                   ],
-                  "Default":"WaitingState"
+                  "Default":"WaitingState",
+                  "Retry": [{
+                    "ErrorEquals": ["States.Runtime"],
+                    "IntervalSeconds": 5,
+                    "MaxAttempts": 3
+                  }]
                 }
               }
             }
           - CleanARN: !Ref Cleaning
             NotifyARN: !Ref LambdaNotification
-            WaitARN: !Ref LambdaWait
+            WaitTime: !Ref WaitingTime
             NIterations: !Ref RetryTimes
       Tags:
         - Key: Name

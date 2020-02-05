@@ -120,13 +120,6 @@ Resources:
                 try:
                   url = 'https://console.aws.amazon.com/cloudwatch/home?region='+Region+'#logEventViewer:group='+GroupName+';stream='+StreamName
                   logs = "\nExecution Logs:\n"
-                  #client = boto3.client('logs')
-                  #res = client.get_log_events(logGroupName=GroupName,logStreamName=StreamName)
-                  #for event in res['events']:
-                  #  if '[INFO]' in str(event['message']):
-                  #    logs += str(event['timestamp'])+" "+str(event['message'])+""
-                  #client.delete_log_stream(logGroupName=GroupName,logStreamName=StreamName)
-                  #logs += "\nLogs taken from Log Group Name: "+GroupName+"  Stream: "+StreamName+"\n"
                   logs += url
                   return logs
                 except botocore.exceptions.ClientError as e:

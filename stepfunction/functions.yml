@@ -10,15 +10,9 @@ Parameters:
 
   TimeOut:
     Type: Number
-    Default: 600
+    Default: 900
     AllowedValues: [ 300, 600, 900]
     Description: Time out for lambdas
-
-  MaxLambdaWaitTime:
-    Type: Number
-    Default: 15
-    AllowedValues: [ 5, 10, 15]
-    Description: Max time waiting lambda will be up in Minutes
 
   WaitingTime:
     Type: Number
@@ -80,83 +74,9 @@ Resources:
         - Key: StackName
           Value: !Ref StackName
 
-  ########## Lambda Waiting Role ##########
-  WaitingRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      Tags:
-        - Key: Name
-          Value: !Sub waiting-role-${StackName}
-        - Key: OwnerName
-          Value: !Ref OwnerName
-        - Key: StackName
-          Value: !Ref StackName
-
-  ########## Lambda Waiting Code ##########
-  Waiting:
-    Type: AWS::Lambda::Function
-    Properties:
-      Description: Lambda function that waits
-      Handler: index.lambda_handler
-      Role: !GetAtt [ WaitingRole, Arn ]
-      Runtime: python3.6
-      FunctionName: WaitingLambda
-      Timeout: 900
-      Code:
-        ZipFile:
-          !Sub
-            - |-
-              import json
-              import time
-              import logging
-              logger = logging.getLogger(__name__)
-              logger.setLevel(logging.INFO)
-              def lambda_handler(event, context):
-                try:
-                  Iteration = event['Iteration']
-                  MAX_LAMBDA = ${MaxiL} # MIN
-                  MIN = ${TimeWait} # MINUTES
-                  logger.info('Cleaning >> Waiting...')
-                  MIN = round(MIN)
-                  i = 0
-                  while i < MIN and i < MAX_LAMBDA:
-                    time.sleep(60)
-                    logger.info('Cleaning >> Waiting '+str(i+1)+'min out of '+str(MIN)+'min...')
-                    i += 1
-                  logger.info('Cleaning >> Finish waiting...')
-                  response = {"statusCode": 200,"Message": "Succesful", "Iteration": Iteration + 1, "Stopped": 0}
-                  return response
-                except Exception as e:
-                  logger.info('Cleaning >> Error while waiting: '+str(e))
-                  response = {"statusCode": 500,"Message": "Error", "Iteration": Iteration + 1, "Stopped": 0}
-                  return response
-            - TimeWait: !Ref WaitingTime
-              MaxiL: !Ref MaxLambdaWaitTime
-      Tags:
-        - Key: Name
-          Value: !Sub waiting-lambda-${StackName}
-        - Key: OwnerName
-          Value: !Ref OwnerName
-        - Key: StackName
-          Value: !Ref StackName
-
 Outputs:
 
   ########## Clean Lambda ##########
   CleanUp:
     Description: ARN Lambda function for cleaning resources
     Value: !GetAtt Cleaning.Arn
-
-  ########## Waiting Lambda ##########
-  WaitingLambda:
-    Description: ARN Lambda function for waiting
-    Value: !GetAtt Waiting.Arn

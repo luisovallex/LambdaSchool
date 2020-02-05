@@ -10,10 +10,9 @@ Parameters:
 
   WaitingTime:
     Type: Number
-    Default: 2
-    MinValue: 1
-    MaxValue: 15
-    Description: Time in minutes that will wait until retrying again (1 up to 15 minutes)
+    Default: 900
+    MinValue: 120
+    Description: Time in seconds to wait between each retry
   
   EmailAddress:
     Type: String
@@ -46,7 +45,6 @@ Resources:
       TemplateURL: !Sub "https://s3.amazonaws.com/${S3Bucket}/stepfunction/functions.yml"
       Parameters:
         BucketS3: !Ref S3Bucket
-        WaitingTime: !Ref WaitingTime
         OwnerName: !Ref OwnerName
         StackName: !Ref StackName
 
@@ -65,7 +63,7 @@ Resources:
       TemplateURL: !Sub "https://s3.amazonaws.com/${S3Bucket}/stepfunction/statemachine.yml"
       Parameters:
         Cleaning: !GetAtt LambdaStack.Outputs.CleanUp
-        LambdaWait: !GetAtt LambdaStack.Outputs.WaitingLambda
+        WaitingTime: !Ref WaitingTime
         LambdaNotification: !GetAtt NotificationStack.Outputs.NotificationLambda
         RetryTimes: !Ref RetryTimes
         OwnerName: !Ref OwnerName
