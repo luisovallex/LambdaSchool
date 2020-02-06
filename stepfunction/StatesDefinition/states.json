@@ -1,46 +1,56 @@
 {
-    "Comment": "State machine that stops and checks instances status",
-    "StartAt": "Params",
-    "States":{
-      "Params":{
-        "Type": "Pass",
-        "Result":1,
-        "ResultPath": "$.Iteration",
-        "Next": "Clean"
-      },
-      "Clean":{
-        "Type": "Task",
-        "Resource": "${CleanARN}",
-        "Next": "Decision"
-      },
-      "WaitingState":{
-        "Type": "Task",
-        "Resource": "${WaitARN}",
-        "Next": "Clean"
-      },
-      "SnsNotification":{
-        "Type": "Pass",
-        "End": true
-      },
-      "Decision":{
-        "Type": "Choice",
-        "Choices":[
-          {
-            "Or":[
-              {
-                "Variable":"$.Stopped",
-                "NumericEquals": 1
-              },
-              {
-                "Variable":"$.Iteration",
-                "NumericEquals": ""
-              }
-            ],
-            "Next":"SnsNotification"
-          }
-        ],
-        "Default":"WaitingState"
-      }
+  "Comment": "State machine that stops and checks instances status",
+  "StartAt": "Params",
+  "States":{
+    "Params":{
+      "Type": "Pass",
+      "Result":1,
+      "ResultPath": "$.Iteration",
+      "Next": "Clean"
+    },
+    "Clean":{
+      "Type": "Task",
+      "Resource": "${CleanARN}",
+      "Next": "Decision",
+      "Retry": [{
+        "ErrorEquals": ["States.TaskFailed"],
+        "IntervalSeconds": 5,
+        "MaxAttempts": 3
+      }]
+    },
+    "WaitingState":{
+      "Type": "Wait",
+      "Seconds": ${WaitTime},
+      "Next": "Clean"
+    },
+    "SnsNotification":{
+      "Type": "Task",
+      "Resource":"${NotifyARN}",
+      "End": true,
+      "Retry": [{
+        "ErrorEquals": ["States.TaskFailed"],
+        "IntervalSeconds": 5,
+        "MaxAttempts": 3
+      }]
+    },
+    "Decision":{
+      "Type": "Choice",
+      "Choices":[
+        {
+          "Or":[
+            {
+              "Variable":"$.Stopped",
+              "NumericEquals": 1
+            },
+            {
+              "Variable":"$.Iteration",
+              "NumericEquals": ${NIterations}
+            }
+          ],
+          "Next":"SnsNotification"
+        }
+      ],
+      "Default":"WaitingState"
     }
   }
-  
+}

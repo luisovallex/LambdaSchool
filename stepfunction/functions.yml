@@ -65,7 +65,7 @@ Resources:
       Timeout: !Ref TimeOut
       Code:
         S3Bucket: !Ref BucketS3
-        S3Key: stepfunction/Code/lambda05.zip
+        S3Key: stepfunction/Code/lambda01.zip
       Tags:
         - Key: Name
           Value: !Sub cleaning-lambda-${StackName}
