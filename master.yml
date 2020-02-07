@@ -6,18 +6,17 @@ Parameters:
 
   S3Bucket:
     Type: String
-    Description: S3 bucket where the templates are stored
+    Description: S3 bucket where the templates are stored (Required)
 
   WaitingTime:
     Type: Number
     Default: 900
-    MinValue: 120
-    Description: Time in seconds to wait between each retry
+    MinValue: 300
+    Description: Time in seconds to wait between each retry, minimum value 300s
   
   EmailAddress:
     Type: String
-    Default: ricardo@nclouds.com
-    Description: Email to send notification
+    Description: Email to send notification of the process results, requires email subscription confirmation (Required)
 
   RetryTimes:
     Type: Number
@@ -26,15 +25,15 @@ Parameters:
 
   BudgetAmout:
     Type: Number
-    Description: Budget amount that would stop all the resources.
+    Description: Budget amount that would stop all the resources (Required)
 
   OwnerName:
     Type: String
-    Description: An arbitrary tag name for the owner of these resources
+    Description: An arbitrary tag name for the owner of these resources (Required)
 
   StackName:
     Type: String
-    Description: The name of the stack to which these resources belong
+    Description: The name of the stack to which these resources belong (Required)
 
 Resources:
 
