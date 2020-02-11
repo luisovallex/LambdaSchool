@@ -54,3 +54,63 @@ The template creates the following resources
 </center>
 
 * **Important:** When installing the template via cloudformation, it is necesary to confirm subscription that will be sent to the email provided in the parameters. This subscription is to receive the notification of the results of the process.
+
+## Installation
+
+1. Go to the installation link that will show Cloudformation's template installation wizard
+
+2. Cloudformation's "Quick create Stack" will show, like the following
+<p align="center">
+  <img src="img/Installation1.png"/>
+</p>
+
+3. Go to the parameters section
+<p align="center">
+  <img src="img/Installation2.png"/>
+</p>
+
+  * BudgetAmount Parameter: This parameter will be the budget for your aws account, only numbers is allowed on this field. The following image is an example of creating a $10 budget. It is required.
+  <p align="center">
+    <img src="img/Installation3.png"/>
+  </p>
+
+  * EmailAddress Parameter: This email address will be subscripted to receive notifications about the clean up process, provide a valid email address. It is required.
+  <p align="center">
+    <img src="img/Installation4.png"/>
+  </p>
+
+  * OwnerName Parameter: This parameter will be used to tag created resources by the stack. The purpose of this parameter is to identify who created the resources, choose an arbitrary name. It is required.
+  <p align="center">
+    <img src="img/Installation5.png"/>
+  </p>
+
+  * RetryTimes Parameter: This parameter describes the number of times the clean up process will run if there are resources still running. You can leave it as default. Do not leave it blank.
+  <p align="center">
+    <img src="img/Installation6.png"/>
+  </p>
+
+  * S3Bucket Parameter: This parameter represents the S3 Bucket name where the nested templates are stored. It is required.
+  <p align="center">
+    <img src="img/Installation7.png"/>
+  </p>
+
+  * StackName Parameter: This parameter will be used to tag created resources by the stack. The purpose of this parameter is to identify the resources that belongs to this template. It is required.
+  <p align="center">
+    <img src="img/Installation8.png"/>
+  </p>
+
+  * WaitingTime Parameter: This parameter represents the waiting time between each retry. If resources are still running the process will wait the number of seconds you provide in this field. It is recommended to leave it as default. Do not provide a time lower than 300 seconds (5 min). It is required.
+  <p align="center">
+    <img src="img/Installation9.png"/>
+  </p>
+
+4. Go to the Capabilities section and check the capabilities boxes.
+<p align="center">
+  <img src="img/Installation10.png"/>
+</p>
+
+5. Click on the "Create Stack" Button.
+<p align="center">
+  <img src="img/Installation11.png"/>
+</p>
+
