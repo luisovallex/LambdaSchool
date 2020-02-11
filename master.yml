@@ -12,7 +12,7 @@ Parameters:
     Type: Number
     Default: 900
     MinValue: 300
-    Description: Time in seconds to wait between each retry, minimum value 300s
+    Description: Time in seconds to wait between each retry, minimum value 300s. Do not leave it blank (Required)
   
   EmailAddress:
     Type: String
@@ -21,7 +21,7 @@ Parameters:
   RetryTimes:
     Type: Number
     Default: 3
-    Description: Number of times it will retry waiting for the resources
+    Description: Number of times it will retry waiting for the resources. Do not leave it blank (Required)
 
   BudgetAmout:
     Type: Number
